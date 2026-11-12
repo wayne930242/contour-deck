@@ -68,9 +68,13 @@ export function createPanel(options: PanelOptions): Panel {
   const live = el.appendChild(h("div", "ct-rp-live", "", { "aria-live": "polite" }));
   live.style.display = "contents";
 
+  // One QR at a time: the phone remote or the notes, chosen with a switch above it.
+  const modes = el.appendChild(h("div", "ct-rp-modes", "", { role: "group", "aria-label": labels.qrMode }));
   const codes = el.appendChild(h("div", "ct-rp-qrs"));
-  function tile(title: string, hint: string, link: string) {
-    const figure = codes.appendChild(h("figure", "ct-rp-qr"));
+  const tiles: Record<string, { figure: HTMLElement; switch: HTMLElement }> = {};
+  function tile(mode: string, title: string, hint: string, link: string) {
+    const figure = codes.appendChild(h("figure", "ct-rp-qr", "", { "data-ct-qr": mode }));
+    tiles[mode] = { figure, switch: modes.appendChild(button(`qr:${mode}`, title)) };
     const image = h("div", "ct-rp-img");
     image.hidden = true;
     figure.append(image, h("h3", "", title), h("p", "", hint), h("a", "ct-rp-url", link, { href: link, target: "_blank", rel: "noopener" }));
@@ -84,9 +88,18 @@ export function createPanel(options: PanelOptions): Panel {
       })
       .catch(() => {});
   }
-  if (options.remoteLink) tile(labels.remoteQr, labels.remoteHint, options.remoteLink);
+  if (options.remoteLink) tile("remote", labels.remoteQr, labels.remoteHint, options.remoteLink);
   else codes.before(h("p", "", labels.noRelay));
-  tile(labels.notesQr, labels.notesHint, options.notesLink);
+  tile("notes", labels.notesQr, labels.notesHint, options.notesLink);
+  // Without a relay there is only the notes QR, and nothing to switch.
+  modes.hidden = Object.keys(tiles).length < 2;
+  function showQr(mode: string) {
+    for (const [name, { figure, switch: control }] of Object.entries(tiles)) {
+      figure.hidden = name !== mode;
+      control.setAttribute("aria-pressed", String(name === mode));
+    }
+  }
+  showQr(options.remoteLink ? "remote" : "notes");
 
   const tools = el.appendChild(h("div", "ct-rp-row"));
   const time = h("b", "ct-rp-time", "0:00");
@@ -107,6 +120,8 @@ export function createPanel(options: PanelOptions): Panel {
   };
   el.addEventListener("click", event => {
     const control = (event.target as Element).closest<HTMLElement>("[data-ct-rp]");
+    const action = control?.dataset.ctRp ?? "";
+    if (action.startsWith("qr:")) return showQr(action.slice(3));
     if (control) actions[control.dataset.ctRp ?? ""]?.(control.dataset.ctId ?? "");
   });
   // Escape closes the panel, and only the panel: the deck's own Escape (outline, exit) does not run.

@@ -31,6 +31,7 @@ test("data-ct-relay: R loads the remote, a phone on the same page pairs and move
   await expect(page.locator(".ct-rp .ct-badge").first()).toHaveText("中繼已連線");
   // The built-in encoder came as its own module, and the views of the phone and the presenter did not come at all.
   await expect(page.locator(".ct-rp-img svg")).toHaveCount(2);
+  await expect(page.locator(".ct-rp-qr:visible")).toHaveCount(1);
   const loaded = await remoteModules(page);
   expect(loaded).toContain("session.js");
   expect(loaded).toContain("qr.js");

@@ -8,6 +8,8 @@ export interface RemoteLabels {
   remoteQr: string;
   remoteHint: string;
   notesQr: string;
+  /** Names the switch between the two QR codes. */
+  qrMode: string;
   notesHint: string;
   noRelay: string;
   relayConnecting: string;
@@ -84,6 +86,7 @@ export const defaultRemoteLabels: RemoteLabels = {
   remoteQr: "手機遙控",
   remoteHint: "掃描後手機會顯示確認碼，在這裡按允許才能控制。",
   notesQr: "講稿",
+  qrMode: "QR 碼用途",
   notesHint: "手機自己翻頁的講稿，不需要連線。",
   noRelay: "這個頁面沒有設定中繼服務，手機無法遙控；講稿與講者視窗仍可使用。",
   relayConnecting: "中繼連線中",

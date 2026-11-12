@@ -10,8 +10,18 @@ test("R opens the remote panel with a QR for the phone and one for the notes", a
   expect(new URL(link).searchParams.get("view")).toBe("remote");
   expect(new URL(link).searchParams.get("room")).toBe(room);
   expect(new URL(link).searchParams.has("at")).toBe(false);
-  await expect(page.locator(".ct-rp-img svg")).toHaveCount(2);
-  await expect(page.locator(".ct-rp-url").nth(1)).toHaveAttribute("href", /[?&]view=notes$/);
+  // One QR at a time: the remote first, the notes behind a switch.
+  const shown = page.locator(".ct-rp-qr:visible");
+  await expect(shown).toHaveCount(1);
+  await expect(shown.locator(".ct-rp-img svg")).toBeVisible();
+  await expect(shown.locator(".ct-rp-url")).toHaveAttribute("href", link);
+  await expect(page.locator(".ct-rp-modes").getByRole("button", { name: "手機遙控", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".ct-rp-modes").getByRole("button", { name: "講稿", exact: true }).click();
+  await expect(shown).toHaveCount(1);
+  await expect(shown.locator(".ct-rp-url")).toHaveAttribute("href", /[?&]view=notes$/);
+  await expect(page.locator(".ct-rp-modes").getByRole("button", { name: "講稿", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".ct-rp-modes").getByRole("button", { name: "手機遙控", exact: true }).click();
+  await expect(shown.locator(".ct-rp-url")).toHaveAttribute("href", link);
   await expect(page.getByRole("button", { name: "遙控", exact: true })).toHaveAttribute("aria-pressed", "true");
   // The host is in the room, and alone.
   expect(remote.relay.rooms.get(room)?.guests.size).toBe(0);
@@ -34,6 +44,7 @@ test("without a relay the panel offers the notes and the presenter window only",
   await expect(page.locator(".ct-rp")).toContainText("沒有設定中繼服務");
   await expect(page.locator(".ct-rp-img svg")).toHaveCount(1);
   await expect(page.locator(".ct-rp-url")).toHaveAttribute("href", /[?&]view=notes$/);
+  await expect(page.locator(".ct-rp-modes")).toBeHidden();
   await expect(page.getByRole("button", { name: "開啟講者視窗" })).toBeVisible();
 });
 
@@ -342,6 +353,9 @@ test("the pointer tab shows the laser dot where the finger is on the pad", async
   expect(pad.width / pad.height).toBeCloseTo(stage.width / stage.height, 1);
   await expect(phone.locator(".ct-rmt-pad .ct-pv h2")).toHaveText("三個設計原則");
   expect((await laser(page)).on).toBe(false);
+  // A host's entrance motion, paused until its page is current, does not leave the copy at its first, transparent frame.
+  await phone.addStyleTag({ content: "@keyframes ct-test-rise { from { opacity: 0 } } .ct-stage [data-ct-page] > * { animation: ct-test-rise 1s both paused; }" });
+  expect(await phone.locator(".ct-rmt-pad .ct-pv h2").evaluate(el => getComputedStyle(el).opacity)).toBe("1");
 
   await dragPad(phone, [[0.25, 0.6]], true);
   await expectLaser(page, 0.25, 0.6);

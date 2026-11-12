@@ -26,8 +26,10 @@ const css = `
 .ct-rp-code { font: 800 1.9rem/1 var(--ct-mono); letter-spacing: .14em; margin-right: auto; }
 .ct-rp-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .ct-rp-row > :last-child { margin-left: auto; }
-.ct-rp-qrs { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
-.ct-rp-qr { margin: 0; display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+.ct-rp-modes { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.ct-rp-modes[hidden], .ct-rp-qr[hidden] { display: none; }
+.ct-rp-qrs { display: grid; justify-items: center; }
+.ct-rp-qr { margin: 0; display: flex; flex-direction: column; gap: .35rem; min-width: 0; width: min(100%, 15rem); }
 .ct-rp-img { aspect-ratio: 1; background: #fff; border: 1px solid var(--ct-border); }
 .ct-rp-img svg { display: block; width: 100%; height: 100%; }
 .ct-rp-url { font: .62rem/1.35 var(--ct-mono); color: var(--ct-muted); overflow-wrap: anywhere; }
@@ -40,6 +42,8 @@ const css = `
 .ct-pv { position: relative; overflow: hidden; aspect-ratio: var(--ct-ratio, 16 / 9); background: var(--ct-bg); border: 1px solid var(--ct-border); }
 .ct-app .ct-pv > .ct-stage { inset: auto; left: 0; top: 0; width: 1280px; height: calc(1280px / var(--ct-ratio, 16 / 9)); transform: scale(var(--ct-k, .25)); transform-origin: 0 0; border: 0; z-index: 0; visibility: visible; pointer-events: none; }
 .ct-pvw { height: 100%; overflow: hidden; }
+/* The copy shows the page as it stands, revealed: a host's entrance motion would hold it at its first frame (often transparent), since the copy is never the current page. */
+.ct-pv.ct-pv > .ct-stage *, .ct-pv.ct-pv > .ct-stage *::before, .ct-pv.ct-pv > .ct-stage *::after { animation: none !important; transition: none !important; }
 
 /* ---- the phone ---- */
 .ct-app.ct-rmt { display: flex; flex-direction: column; grid-template-rows: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); font-size: 1rem; -webkit-user-select: none; user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
