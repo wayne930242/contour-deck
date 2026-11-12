@@ -21,8 +21,6 @@ export interface StateMessage {
   elapsed: number;
   /** Planned seconds of the whole talk, or `null` when no block has minutes. */
   total: number | null;
-  /** Title of the current block. */
-  block: string;
   blockElapsed: number;
   blockMinutes: number | null;
   /** Width over height of the stage, so a phone draws on a pad of the same shape. Not in protocol v1; optional. */
@@ -119,7 +117,6 @@ export function stateMessage(value: Fields): StateMessage | null {
     steps: number(value.steps),
     elapsed: number(value.elapsed),
     total: finite(value.total) ? value.total : null,
-    block: typeof value.block === "string" ? value.block.slice(0, 200) : "",
     blockElapsed: number(value.blockElapsed),
     blockMinutes: finite(value.blockMinutes) ? value.blockMinutes : null,
     ...(finite(value.ratio) && value.ratio > 0 ? { ratio: value.ratio } : {}),
@@ -146,10 +143,26 @@ function randomText(alphabet: string, bits: number, length: number): string {
   return out;
 }
 
-/** A room name: 26 characters of Crockford base32 from `crypto.getRandomValues` (the first carries 3 bits, 128 in all). */
-export const newRoom = () => CROCKFORD[crypto.getRandomValues(new Uint8Array(1))[0] & 7] + randomText(CROCKFORD, 5, 25);
+/**
+ * A host key: 26 characters of Crockford base32 from `crypto.getRandomValues` (the first carries 3 bits, 128 in all).
+ * It stays in the host's tab; the relay gives the host seat of a room only to the key whose hash is the room.
+ */
+export const newKey = () => CROCKFORD[crypto.getRandomValues(new Uint8Array(1))[0] & 7] + randomText(CROCKFORD, 5, 25);
 
+/** A room name, and the shape of a host key too. */
 export const isRoom = (value: unknown): value is string => typeof value === "string" && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(value);
+
+/** The room of a host key: the first 26 Crockford base32 characters of SHA-256 of the key (docs/PROTOCOL.md). */
+export async function roomOf(key: string): Promise<string> {
+  if (!globalThis.crypto?.subtle) throw new Error("contour-deck: the remote relay needs a secure context (https or localhost)");
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)));
+  let room = "";
+  for (let bit = 0; room.length < 26; bit += 5) {
+    const at = bit >> 3;
+    room += CROCKFORD[(((hash[at] << 8) | hash[at + 1]) >> (11 - (bit & 7))) & 31];
+  }
+  return room;
+}
 
 /** A resume token: 22 characters of base64url, 132 random bits. */
 export const newToken = () => randomText(BASE64URL, 6, 22);

@@ -139,7 +139,7 @@ const view = new URLSearchParams(location.search).get("view");
 if (view === "remote") load().then(remote => remote.remoteView(root, options)); // the phone
 else if (view === "presenter") load().then(remote => remote.presenterView(root, options)); // the presenter window
 else if (view) {
-  const deck = createDeck(root, { remote: deck => load().then(remote => remote.remoteHost(deck, root, options).toggle()) });
+  const deck = createDeck(root, { remote: deck => load().then(remote => remote.remoteHost(deck, root, options)).then(host => host.toggle()) });
   deck.on("exit", () => deck.destroy());
 }
 ```
@@ -161,8 +161,9 @@ Tilt pointing reads the phone's orientation sensor (iOS asks for permission on t
 Without calibration, the direction of the first press is the centre of a screen ±20° wide and ±12° high.
 When the pointer drifts, aim at the centre and press 重新置中; aiming past an edge also drags the calibration along, as a mouse at the edge of a screen.
 
-Security, in two lines: the relay only forwards small messages (position, commands, pointer coordinates) between the deck and at most four phones in a room named by 128 random bits; notes and slide content never pass through it, because the phone loads the page itself.
-Control belongs to the one phone the presenter allowed on the deck after comparing the code; everything any other guest sends is ignored, so a QR photographed from the projector yields only a request to deny.
+Security, in three lines: the relay only forwards small messages (position, commands, pointer coordinates) between the deck and at most four phones; notes, block titles, and slide content never pass through it, because the phone loads the page itself.
+The room in the QR lets a phone ask; only the deck's tab holds the key the room is hashed from, so nobody else can take the deck's seat at the relay and hear what the phones send.
+Control belongs to the one phone the presenter allowed on the deck after comparing the code; everything any other guest sends is ignored, and the relay removes a denied guest, so a QR photographed from the projector yields only a request to deny.
 
 | Option of `remoteHost`, `remoteView`, `presenterView` | Default | Meaning |
 | --- | --- | --- |
@@ -173,8 +174,9 @@ Control belongs to the one phone the presenter allowed on the deck after compari
 | `nonce` | none | Nonce for the `<style>` the module injects, for a page with a `style-src` policy. |
 | `room` (views only) | `?room=` | The room to join. |
 
-`remoteHost(deck, root, options)` returns the session of that deck, creating it once: `toggle()` shows or hides the panel, `end()` takes control back and closes the room, `room` is its name.
-The room, the paired phone's token, and the clock live in `sessionStorage`, so a reload of the deck or of the phone continues the same session; the Astro host and the demo restart it by themselves after a reload.
+`remoteHost(deck, root, options)` resolves to the session of that deck, creating it once: `toggle()` shows or hides the panel, `end()` takes control back and closes the room, `room` is its name.
+It is a promise because the room is the SHA-256 of the session's key (`crypto.subtle`, so with a relay the page needs https or localhost).
+The key, the paired phone's token, and the clock live in `sessionStorage`, so a reload of the deck or of the phone continues the same session; the Astro host and the demo restart it by themselves after a reload.
 With the Astro component, pass a QR encoder or labels through `configureRemote({ qr })` from `contour-deck/host`.
 The remote follows the first deck of a page.
 
@@ -184,8 +186,8 @@ The laser dot eases towards its target and fades when released; with `prefers-re
 #### The relay
 
 The relay is a WebSocket forwarder, one room per talk, specified in [docs/PROTOCOL.md](docs/PROTOCOL.md): rooms, the pairing messages, close codes, and limits (2 KB frames, 60 messages a second, 4 guests).
-`relay(url, { room, role })` and `broadcast(room)` are the two `Transport`s (`send`, `subscribe`, `watch`, `reconnect`, `close`, `status`); the relay one reconnects with backoff.
-The demo takes a relay from the query string: `https://wayne930242.github.io/contour-deck/?relay=wss://relay.example&view=deck`.
+`relay(url, { room, role, key })` and `broadcast(room)` are the two `Transport`s (`send`, `subscribe`, `watch`, `reconnect`, `close`, `status`); the relay one reconnects with backoff, except after `4003` (removed by the host) and `4009` (another tab of the session took the host seat).
+The demo takes a relay from the query string, the deployed one or one on this machine: `https://wayne930242.github.io/contour-deck/?relay=wss://contour-relay.wayne930242.workers.dev&view=deck`, or `?relay=ws://localhost:8787`; it ignores any other.
 The phone must be able to open the page's URL, so a deck on `localhost` needs a tunnel or the LAN address for the phone part.
 
 ### Keys

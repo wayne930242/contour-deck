@@ -69,15 +69,23 @@ export function broadcast(room: string): Transport {
 export interface RelayOptions {
   room: string;
   role: "host" | "guest";
+  /** The host key whose hash is `room`; the relay seats a host only with it. Guests have none. */
+  key?: string;
 }
 
 const FIRST_RETRY = 500;
 const LAST_RETRY = 15_000;
 
 /** `https://relay.example` or `wss://relay.example` to the room endpoint. */
-export function relayUrl(base: string, { room, role }: RelayOptions): string {
-  return `${base.replace(/^http/, "ws").replace(/\/+$/, "")}/v1/room/${room}?role=${role}`;
+export function relayUrl(base: string, { room, role, key }: RelayOptions): string {
+  return `${base.replace(/^http/, "ws").replace(/\/+$/, "")}/v1/room/${room}?role=${role}${key ? `&key=${key}` : ""}`;
 }
+
+/**
+ * Closes after which the connection is not opened again by itself: 4009, a newer connection with the same key
+ * took the host seat (the same session in another tab); 4003, the host removed this guest.
+ */
+const FINAL = [4003, 4009];
 
 /**
  * A WebSocket to the relay. A connection that ends is opened again with exponential backoff
@@ -94,6 +102,8 @@ export function relay(base: string, options: RelayOptions): Transport {
   let attempt = 0;
   let timer = 0;
   let ended = false;
+  /** After a final close: waiting for `reconnect()`, not for a timer or the page coming back. */
+  let parked = false;
 
   function set(next: TransportStatus) {
     if (next === status) return;
@@ -124,6 +134,8 @@ export function relay(base: string, options: RelayOptions): Transport {
       code = event.code;
       if (ended) return;
       set("closed");
+      parked = FINAL.includes(code);
+      if (parked) return;
       const delay = Math.min(LAST_RETRY, FIRST_RETRY * 2 ** attempt++) * (0.5 + Math.random() / 2);
       timer = window.setTimeout(open, delay);
     };
@@ -135,12 +147,13 @@ export function relay(base: string, options: RelayOptions): Transport {
     socket = null;
     current?.close();
     attempt = 0;
+    parked = false;
     open();
   }
 
   /** Waiting for a retry while the page was hidden or offline: try now. */
   const wake = () => {
-    if (!socket && !document.hidden) reconnect();
+    if (!socket && !parked && !document.hidden) reconnect();
   };
   addEventListener("online", wake, { signal: abort.signal });
   document.addEventListener("visibilitychange", wake, { signal: abort.signal });

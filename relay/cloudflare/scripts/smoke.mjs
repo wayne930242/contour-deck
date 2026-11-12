@@ -1,6 +1,8 @@
 // Live check of a deployed (or local) relay against docs/PROTOCOL.md.
-//   node scripts/smoke.mjs [relay URL] [--origin <allowed origin>] [--rate]
+//   node scripts/smoke.mjs [relay URL] [--origin <allowed origin>] [--rate] [--per-address]
 // --rate adds the rate-limit check: about 15 s and 1,500 messages.
+// --per-address adds the check of the per-address limit: up to 70 plain GETs (no socket, no Durable Object request),
+// after which this address is refused for up to a minute; it runs last.
 // Exits 1 on the first failed check. It uses the `ws` client because Node's built-in WebSocket reports a close
 // the server started only when the TCP connection ends, which Cloudflare does seconds after the close frame.
 
@@ -17,13 +19,33 @@ const has = (name) => {
   return at !== -1;
 };
 const withRate = has("--rate");
+const withPerAddress = has("--per-address");
 const origin = flag("--origin") ?? process.env.RELAY_ORIGIN ?? "https://wayne930242.github.io";
 const base = (args[0] ?? process.env.RELAY_URL ?? "https://contour-relay.wayne930242.workers.dev").replace(/\/$/, "");
 const wsBase = base.replace(/^http/, "ws");
 const TIMEOUT_MS = 10_000;
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const newRoom = () => Array.from(crypto.getRandomValues(new Uint8Array(26)), (byte) => CROCKFORD[byte & 31]).join("");
+const newKey = () => Array.from(crypto.getRandomValues(new Uint8Array(26)), (byte) => CROCKFORD[byte & 31]).join("");
+
+/** The room a host key opens: the first 26 Crockford base32 characters of SHA-256 of the key. */
+async function roomOfKey(key) {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)));
+  let bits = "";
+  for (const byte of hash) bits += byte.toString(2).padStart(8, "0");
+  let room = "";
+  for (let i = 0; i < 26; i++) room += CROCKFORD[parseInt(bits.slice(i * 5, i * 5 + 5), 2)];
+  return room;
+}
+
+/** The host key of every room `newRoom` made. */
+const keys = new Map();
+async function newRoom() {
+  const key = newKey();
+  const room = await roomOfKey(key);
+  keys.set(room, key);
+  return room;
+}
 
 let checks = 0;
 function ok(condition, label, detail = "") {
@@ -36,10 +58,14 @@ function timeout(label) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error(`timed out: ${label}`)), TIMEOUT_MS).unref());
 }
 
-/** A socket with its frames queued; `status` is 101 once open, else the HTTP status that refused the handshake. */
-function open(room, role, from = origin) {
+/**
+ * A socket with its frames queued; `status` is 101 once open, else the HTTP status that refused the handshake.
+ * A host presents the key `newRoom` made for the room unless `key` says otherwise (`null`: none).
+ */
+function open(room, role, { from = origin, key = role === "host" ? (keys.get(room) ?? null) : null } = {}) {
+  const query = key === null ? "" : `&key=${key}`;
   // `wrangler dev` never ends the connection after a close the relay started; give up waiting after 2 s.
-  const ws = new WebSocket(`${wsBase}/v1/room/${room}?role=${role}`, { origin: from, closeTimeout: 2_000 });
+  const ws = new WebSocket(`${wsBase}/v1/room/${room}?role=${role}${query}`, { origin: from, closeTimeout: 2_000 });
   const queue = [];
   let waiter = null;
   ws.on("message", (data) => {
@@ -79,8 +105,8 @@ async function main() {
   const health = await fetch(`${base}/v1/health`);
   ok(health.status === 200 && (await health.text()) === "ok", "GET /v1/health answers 200 ok");
 
-  const room = newRoom();
-  const evil = open(room, "host", "https://evil.example");
+  const room = await newRoom();
+  const evil = open(room, "host", { from: "https://evil.example" });
   const evilStatus = await evil.status("handshake with a disallowed Origin");
   ok(evilStatus === 403, "a WebSocket handshake with a disallowed Origin gets HTTP 403", `status ${evilStatus}`);
   const noOrigin = await fetch(`${base}/v1/room/${room}?role=host`);
@@ -88,6 +114,12 @@ async function main() {
   const badRoom = open("not-a-room", "host");
   const badRoomStatus = await badRoom.status("handshake with a malformed room id");
   ok(badRoomStatus === 400, "a malformed room id gets HTTP 400", `status ${badRoomStatus}`);
+  const noKey = open(room, "host", { key: null });
+  const noKeyStatus = await noKey.status("host handshake without a key");
+  ok(noKeyStatus === 403, "a host without a key gets HTTP 403", `status ${noKeyStatus}`);
+  const wrongKey = open(room, "host", { key: newKey() });
+  const wrongKeyStatus = await wrongKey.status("host handshake with another key");
+  ok(wrongKeyStatus === 403, "a host with a key that is not the room's gets HTTP 403", `status ${wrongKeyStatus}`);
 
   const host = open(room, "host");
   ok((await host.status("host handshake")) === 101, "the host connects with an allowed Origin");
@@ -98,9 +130,7 @@ async function main() {
     JSON.stringify(hostHello),
   );
 
-  const second = open(room, "host");
-  ok((await second.closed("second host")) === 4009, "a second host is closed with 4009");
-  const stray = open(newRoom(), "guest");
+  const stray = open(await newRoom(), "guest");
   ok((await stray.closed("guest without host")) === 4004, "a guest in a room without a host is closed with 4004");
 
   const a = open(room, "guest");
@@ -135,19 +165,31 @@ async function main() {
     "a host message without `to` reaches every guest",
   );
 
-  a.close();
-  ok(same(await host.next("leave"), { t: "leave", id: aHello.id }), "the host gets leave when a guest closes");
-  host.close();
-  ok((await b.closed("room closed")) === 4000, "the remaining guest is closed with 4000 when the host closes");
+  host.send({ t: "deny", to: aHello.id });
+  ok(same(await a.next("deny"), { t: "deny", to: aHello.id }), "the host's deny reaches the guest");
+  ok((await a.closed("guest removed")) === 4003, "the relay then closes that guest with 4003");
+  ok(same(await host.next("leave"), { t: "leave", id: aHello.id }), "the host gets leave for the guest it denied");
+
+  const second = open(room, "host");
+  const secondHello = await second.next("second host hello");
+  ok(secondHello.t === "hello" && secondHello.role === "host", "a second host with the room's key takes the seat");
+  ok((await host.closed("replaced host")) === 4009, "the host it replaced is closed with 4009");
+  ok((await b.closed("guest of the replaced host")) === 4000, "the guests of the replaced host are closed with 4000");
+  const c = open(room, "guest");
+  const cHello = await c.next("guest of the new host");
+  ok(same(await second.next("join at the new host"), { t: "join", id: cHello.id }), "a guest joins the new host");
+  second.close();
+  ok((await c.closed("room closed")) === 4000, "the guest is closed with 4000 when the host closes");
 
   await limits();
   if (withRate) await rate();
+  if (withPerAddress) await perAddress();
   console.log(`${checks} checks passed`);
 }
 
 /** A room with a host and `count` guests, every hello and join already read. */
 async function openRoom(count) {
-  const room = newRoom();
+  const room = await newRoom();
   const host = open(room, "host");
   await host.next("hello");
   const guests = [];
@@ -212,6 +254,20 @@ async function rate() {
   ok(seconds > 12 && seconds < 16, "the close came 10 s after the burst of 120 ran out (about 13 s in)", `${seconds.toFixed(1)} s`);
   ok(got < sent && got <= 120 + 60 * seconds + 10, "the host got no more than the burst plus 60 per second", `${got} of ${sent}`);
   host.close();
+}
+
+/** Plain GETs to a room path count toward the per-address limit (60 a minute) without opening anything. */
+async function perAddress() {
+  const room = await newRoom();
+  const statuses = [];
+  for (let i = 0; i < 70; i++) {
+    const response = await fetch(`${base}/v1/room/${room}?role=guest`, { headers: { Origin: origin } });
+    await response.text();
+    statuses.push(response.status);
+    if (response.status === 429) break;
+  }
+  console.log(`    ${statuses.length} requests: ${statuses.filter((s) => s === 426).length} × 426, then ${statuses.at(-1)}`);
+  ok(statuses.at(-1) === 429, "requests from one address past the limit get HTTP 429", statuses.join(","));
 }
 
 main().then(

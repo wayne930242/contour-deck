@@ -74,7 +74,7 @@ export function remoteView(root: HTMLElement, options: RemoteViewOptions = {}): 
   const top = app.appendChild(h("header", "ct-rmt-top"));
   const status = h("span", "ct-badge ct-rmt-st");
   const position = h("span", "ct-rmt-pos");
-  const timers = createTimers(labels);
+  const timers = createTimers(labels, outline);
   top.append(status, position, timers.time, timers.block);
 
   const tabs = app.appendChild(h("nav", "ct-rmt-tabs"));

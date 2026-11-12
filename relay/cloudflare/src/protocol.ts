@@ -3,11 +3,14 @@
 export const MAX_FRAME_BYTES = 2048;
 export const MAX_GUESTS = 4;
 export const IDLE_MS = 2 * 60 * 60 * 1000;
+/** Requests to room paths one client address may make per minute (the `UPGRADES` binding in wrangler.jsonc). */
+export const UPGRADES_PER_MINUTE = 60;
 
 export const CLOSE = {
   roomClosed: 4000,
+  removed: 4003,
   noHost: 4004,
-  hostTaken: 4009,
+  hostReplaced: 4009,
   roomFull: 4029,
   rateLimit: 1008,
   tooLarge: 1009,
@@ -30,6 +33,30 @@ const ID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{8}$/;
 export function canonicalRoom(raw: string): string | null {
   const upper = raw.toUpperCase();
   return ROOM_PATTERN.test(upper) ? upper : null;
+}
+
+/**
+ * The room a host key opens: the first 26 Crockford base32 characters of SHA-256 of the key (UTF-8, upper case),
+ * or null when `raw` is not a key. A key has the shape of a room id; the QR carries the room, never the key.
+ */
+export async function roomOfKey(raw: string): Promise<string | null> {
+  const key = canonicalRoom(raw);
+  if (key === null) return null;
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)));
+  let room = "";
+  let buffer = 0;
+  let held = 0;
+  for (const byte of hash) {
+    buffer = (buffer << 8) | byte;
+    held += 8;
+    while (held >= 5 && room.length < 26) {
+      held -= 5;
+      room += CROCKFORD[(buffer >> held) & 31];
+    }
+    buffer &= (1 << held) - 1;
+    if (room.length === 26) break;
+  }
+  return room;
 }
 
 export function isSocketId(value: unknown): value is string {

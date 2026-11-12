@@ -155,3 +155,21 @@ export async function rawGuest(page: Page, room: string, frames: object[]): Prom
     [`${RELAY}/v1/room/${room}?role=guest`, frames] as const
   );
 }
+
+/**
+ * A socket to the relay opened by hand from a page, with any query: what a stranger can try.
+ * Resolves with what it heard and its close code once it closes, or after `ms` with the code 0.
+ */
+export async function rawSocket(page: Page, query: string, ms = 1500): Promise<{ heard: { t: string }[]; code: number }> {
+  return page.evaluate(
+    ([url, wait]) =>
+      new Promise<{ heard: { t: string }[]; code: number }>(resolve => {
+        const heard: { t: string }[] = [];
+        const socket = new WebSocket(url as string);
+        socket.onmessage = event => heard.push(JSON.parse(String(event.data)) as { t: string });
+        socket.onclose = event => resolve({ heard, code: event.code });
+        setTimeout(() => resolve({ heard, code: 0 }), wait as number);
+      }),
+    [`${RELAY}/v1/room/${query}`, ms] as const
+  );
+}

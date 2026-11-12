@@ -39,7 +39,7 @@ export function presenterView(root: HTMLElement, options: RemoteViewOptions = {}
   const app = h("div", "ct-app ct-pr", "", { "data-ct-mode": "stage", "data-ct-wait": "" });
   const top = app.appendChild(h("header", "ct-pr-top"));
   const position = h("span", "ct-rmt-pos", labels.noDeck);
-  const timers = createTimers(labels);
+  const timers = createTimers(labels, outline);
   const button = (command: Command, text: string) => h("button", "ct-btn", text, { "data-ct-do": command });
   top.append(button("prev", defaultLabels.prev), button("next", defaultLabels.next), button("overview", defaultLabels.overview), position, timers.block, timers.time);
 

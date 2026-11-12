@@ -1,6 +1,7 @@
 /** The remote: pairing, control, pointer, ink, state, and the presenter window, over the relay stub. */
 import { expectAt, idle } from "./helpers.js";
-import { DECK_INK, dragPad, expect, expectLaser, inked, laser, PAD_INK, rawGuest, test } from "./remote-helpers.js";
+import { DECK_INK, dragPad, expect, expectLaser, inked, laser, PAD_INK, rawGuest, rawSocket, test } from "./remote-helpers.js";
+import { roomOfKey } from "./relay-stub.js";
 
 test("R opens the remote panel with a QR for the phone and one for the notes", async ({ page, remote }) => {
   const link = await remote.start();
@@ -61,12 +62,10 @@ test("pairing: the phone shows the code the deck shows, and allow gives it contr
   await expect(phone.locator(".ct-rmt-notes")).toContainText("設計原則有三條");
   await expect(phone.locator(".ct-rmt-next")).toContainText("要點");
   await expect(phone.locator(".ct-rmt-next")).toContainText("內容只存在一份");
-  // Only position and timing crossed the relay: no notes, no slide text.
+  // Only position and timing crossed the relay: no notes, no slide text, not even the block title, which the phone read from its own page.
   const state = remote.relay.received(guest, "state")[0];
-  expect(Object.keys(state).sort()).toEqual(
-    ["at", "block", "blockElapsed", "blockMinutes", "elapsed", "mode", "ratio", "step", "steps", "t", "to", "total"].sort()
-  );
-  expect(state).toMatchObject({ mode: "stage", at: "2.2.1", step: 0, steps: 3, elapsed: 0, total: 720, block: "一、為什麼大綱優先", blockMinutes: 3 });
+  expect(Object.keys(state).sort()).toEqual(["at", "blockElapsed", "blockMinutes", "elapsed", "mode", "ratio", "step", "steps", "t", "to", "total"].sort());
+  expect(state).toMatchObject({ mode: "stage", at: "2.2.1", step: 0, steps: 3, elapsed: 0, total: 720, blockMinutes: 3 });
 });
 
 test("pairing: deny leaves the phone without control, and it can ask again", async ({ page, remote }) => {
@@ -127,6 +126,76 @@ test("an unpaired guest cannot control the deck", async ({ page, remote }) => {
   await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "granted");
   await phone.getByRole("button", { name: "下一步" }).click();
   await expectAt(page, "stage 2.2.1 +1");
+});
+
+test("the host key goes to the relay only: the room is its hash, and no link or QR carries it", async ({ page, remote }) => {
+  const link = await remote.start();
+  const room = await remote.room();
+  const key = new URL(remote.relay.rooms.get(room)!.host!.socket.url()).searchParams.get("key")!;
+  expect(key).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+  expect(roomOfKey(key)).toBe(room);
+  expect(link).not.toContain(key);
+  expect(await page.locator(".ct-rp").evaluate(panel => panel.outerHTML)).not.toContain(key);
+  // The tab keeps the key, so a reload takes the same room.
+  expect(await page.evaluate(name => sessionStorage.getItem(name), "contour-deck:host:/demo/index.html")).toContain(key);
+});
+
+test("a stranger with the room cannot take the host seat, so the phone's token never reaches them", async ({ page, remote }) => {
+  const phone = await remote.paired();
+  const room = await remote.room();
+  const stranger = await page.context().newPage();
+  // A page of the same origin that loads nothing else (media.html needs recorded clips that CI does not have).
+  await stranger.goto("/demo/demo.css");
+  const tries = [`${room}?role=host`, `${room}?role=host&key=${room}`, `${room}?role=host&key=${"7".repeat(26)}`];
+  // While the deck is there, and in the gap after its connection dropped: refused without a greeting either way.
+  for (const query of tries) expect(await rawSocket(stranger, query)).toEqual({ heard: [], code: 1008 });
+  await remote.relay.dropHost(room);
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "offline");
+  for (const query of tries) expect(await rawSocket(stranger, query)).toEqual({ heard: [], code: 1008 });
+
+  // The deck comes back with its key, and the phone resumes there without a code.
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "granted", { timeout: 20_000 });
+  await expect(page.locator(".ct-rp-ask")).toHaveCount(0);
+  const resumed = remote.relay.forwarded.filter(frame => frame.message.t === "resume");
+  expect(resumed.length).toBeGreaterThan(0);
+  for (const frame of resumed) expect(frame.to).toBe("host");
+  await phone.getByRole("button", { name: "下一步" }).click();
+  await expectAt(page, "stage 2.2.1 +1");
+});
+
+test("the relay removes a guest the presenter denied, even one that ignores the answer", async ({ page, remote }) => {
+  await remote.start();
+  const room = await remote.room();
+  const stranger = await page.context().newPage();
+  await stranger.goto("/demo/demo.css");
+  const raw = rawSocket(stranger, `${room}?role=guest`, 10_000);
+  await expect(page.locator(".ct-rp-ask")).toHaveCount(1);
+  await page.getByRole("button", { name: "拒絕" }).click();
+  const { heard, code } = await raw;
+  expect(heard.map(frame => frame.t)).toEqual(["hello", "pair", "deny"]);
+  expect(code).toBe(4003);
+  expect(remote.relay.rooms.get(room)!.guests.size).toBe(0);
+});
+
+test("another tab of the same session takes the host seat; the first one stops and says so", async ({ page, context, remote }) => {
+  const phone = await remote.paired();
+  const room = await remote.room();
+  // A duplicated tab copies sessionStorage, the host key with it.
+  const saved = (await page.evaluate(name => sessionStorage.getItem(name), "contour-deck:host:/demo/index.html"))!;
+  const second = await context.newPage();
+  await second.addInitScript(value => sessionStorage.setItem("contour-deck:host:/demo/index.html", value), saved);
+  await second.goto(page.url());
+  await expect.poll(() => second.evaluate(() => window.contourDemo.remote?.room ?? null)).toBe(room);
+
+  // The first tab lost the seat (4009) and does not try to take it back; the phone follows the new tab.
+  await expect(page.locator(".ct-rp")).toContainText("房間已被另一個視窗使用");
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "granted", { timeout: 20_000 });
+  const host = remote.relay.rooms.get(room)!.host!;
+  await page.waitForTimeout(3000);
+  expect(remote.relay.rooms.get(room)!.host).toBe(host);
+  await phone.getByRole("button", { name: "下一步" }).click();
+  await expectAt(second, "stage 2.2.1 +1");
+  await expectAt(page, "stage 2.2.1 +0");
 });
 
 test("a paired phone resumes after a reload without asking again", async ({ page, remote }) => {

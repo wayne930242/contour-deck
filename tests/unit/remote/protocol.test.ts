@@ -1,6 +1,6 @@
 /** Frames from outside: what the host accepts from a guest, and what a guest accepts as state. */
 import { describe, expect, it } from "vitest";
-import { decode, guestMessage, isRoom, MAX_FRAME, newCode, newRoom, newToken, stateMessage } from "../../../src/remote/protocol.js";
+import { decode, guestMessage, isRoom, MAX_FRAME, newCode, newKey, newToken, roomOf, stateMessage } from "../../../src/remote/protocol.js";
 
 const parse = (value: object) => guestMessage(decode(JSON.stringify(value))!);
 
@@ -64,8 +64,10 @@ describe("guestMessage", () => {
 
 describe("stateMessage", () => {
   it("reads the fields of the protocol and neutralises wrong types", () => {
-    const state = { t: "state", mode: "stage", at: "3.4.2", step: 1, steps: 4, elapsed: 72.5, total: 720, block: "三", blockElapsed: 12, blockMinutes: 5 };
+    const state = { t: "state", mode: "stage", at: "3.4.2", step: 1, steps: 4, elapsed: 72.5, total: 720, blockElapsed: 12, blockMinutes: 5 };
     expect(stateMessage(state)).toEqual(state);
+    // No text of the post rides on a state: a `block` from an older host is not read.
+    expect(stateMessage({ ...state, block: "三" })).toEqual(state);
     expect(stateMessage({ ...state, ratio: 1.6 })).toEqual({ ...state, ratio: 1.6 });
     expect(stateMessage({ t: "state", at: "1.1.1", mode: "notes", step: "x", total: "12", ratio: -1 })).toEqual({
       t: "state",
@@ -75,7 +77,6 @@ describe("stateMessage", () => {
       steps: 0,
       elapsed: 0,
       total: null,
-      block: "",
       blockElapsed: 0,
       blockMinutes: null,
     });
@@ -85,8 +86,8 @@ describe("stateMessage", () => {
 });
 
 describe("random names", () => {
-  it("makes rooms of 26 Crockford characters that hold 128 bits", () => {
-    const rooms = Array.from({ length: 200 }, newRoom);
+  it("makes host keys of 26 Crockford characters that hold 128 bits", () => {
+    const rooms = Array.from({ length: 200 }, newKey);
     for (const room of rooms) {
       expect(isRoom(room)).toBe(true);
       expect("01234567").toContain(room[0]);
@@ -99,6 +100,16 @@ describe("random names", () => {
     expect(isRoom("IZZZZZZZZZZZZZZZZZZZZZZZZZ")).toBe(false);
     expect(isRoom("7zzzzzzzzzzzzzzzzzzzzzzzzz")).toBe(false);
     expect(isRoom(null)).toBe(false);
+  });
+
+  it("names the room of a key by the first 26 Crockford characters of its SHA-256", async () => {
+    // The same vector is in the relay's tests (relay/cloudflare/test/protocol.test.ts).
+    expect(await roomOf("0123456789ABCDEFGHJKMNPQRS")).toBe("YQV9WCK1VFXD4486E3JKK6CYND");
+    const key = newKey();
+    const room = await roomOf(key);
+    expect(isRoom(room)).toBe(true);
+    expect(room).not.toBe(key);
+    expect(await roomOf(key)).toBe(room);
   });
 
   it("makes 22-character tokens and 4-digit codes", () => {

@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe("opening", () => {
   it("greets every socket with hello, its role, and an 8-character id", async () => {
-    const room = newRoom();
+    const room = await newRoom();
     const host = await connect(room, "host");
     const hostHello = await host.hello();
     expect(hostHello).toEqual({ t: "hello", id: expect.stringMatching(ID), role: "host" });
@@ -26,18 +26,22 @@ describe("opening", () => {
     expect(guestHello.id).not.toBe(hostHello.id);
   });
 
-  it("closes a second host with 4009 and leaves the first in place", async () => {
-    const { room, host } = await openRoom(0);
+  it("hands the host seat to a host with the key: the old host gets 4009, the guests 4000", async () => {
+    const { room, host, guests } = await openRoom(2);
     const second = await connect(room, "host");
-    expect(await second.closed).toEqual({ code: 4009, reason: "room already has a host" });
+    expect((await second.hello()).role).toBe("host");
+    expect(await host.closed).toEqual({ code: 4009, reason: "host replaced" });
+    for (const guest of guests) expect(await guest.closed).toEqual({ code: 4000, reason: "room closed" });
 
+    // The room lives on with the new host: no leave of the old guests, and a new guest joins it.
     const guest = await connect(room, "guest");
     await guest.hello();
-    expect(await host.next()).toEqual({ t: "join", id: guest.id });
+    expect(await second.next()).toEqual({ t: "join", id: guest.id });
+    expect(await pendingAlarm(room)).not.toBeNull();
   });
 
   it("closes a guest with 4004 when the room has no host", async () => {
-    const guest = await connect(newRoom(), "guest");
+    const guest = await connect(await newRoom(), "guest");
     expect(await guest.closed).toEqual({ code: 4004, reason: "no host in this room" });
   });
 
@@ -54,7 +58,7 @@ describe("opening", () => {
   });
 
   it("tells the host about every guest that joins and leaves", async () => {
-    const room = newRoom();
+    const room = await newRoom();
     const host = await connect(room, "host");
     await host.hello();
     const a = await connect(room, "guest");
@@ -110,6 +114,42 @@ describe("host messages", () => {
     expect(await guest.next()).toEqual({ t: "state" });
     guest.send({ t: "ping" });
     expect(await host.next()).toEqual({ t: "ping", from: guest.id });
+  });
+});
+
+describe("removing a guest", () => {
+  it.each(["deny", "revoke"])("closes the guest with 4003 after forwarding the host's %s, and frees its place", async (t) => {
+    const { room, host, guests } = await openRoom(4);
+    const [a, b] = guests as [Peer, Peer, Peer, Peer];
+    host.send({ t, to: a.id });
+    expect(await a.next()).toEqual({ t, to: a.id });
+    expect(await a.closed).toEqual({ code: 4003, reason: "removed by the host" });
+    expect(await host.next()).toEqual({ t: "leave", id: a.id });
+
+    const next = await connect(room, "guest");
+    await next.hello();
+    expect(await host.next()).toEqual({ t: "join", id: next.id });
+    host.send({ t: "mark", to: b.id });
+    expect(await b.next()).toEqual({ t: "mark", to: b.id });
+  });
+
+  it("keeps a guest that only got a pairing code", async () => {
+    const { host, guests } = await openRoom(1);
+    const guest = guests[0] as Peer;
+    host.send({ t: "pair", to: guest.id, code: "1234" });
+    host.send({ t: "mark", to: guest.id });
+    expect(await guest.next()).toEqual({ t: "pair", to: guest.id, code: "1234" });
+    expect(await guest.next()).toEqual({ t: "mark", to: guest.id });
+  });
+
+  it("removes nobody for a deny without `to`", async () => {
+    const { host, guests } = await openRoom(2);
+    host.send({ t: "deny" });
+    host.send({ t: "mark" });
+    for (const guest of guests) {
+      expect(await guest.next()).toEqual({ t: "deny" });
+      expect(await guest.next()).toEqual({ t: "mark" });
+    }
   });
 });
 
@@ -210,7 +250,6 @@ describe("hibernation", () => {
     expect(await b.next()).toEqual({ t: "mark" });
 
     await evictDurableObject(roomStub(room));
-    expect((await (await connect(room, "host")).closed).code).toBe(4009);
     expect((await (await connect(room, "guest")).closed).code).toBe(4029);
 
     await evictDurableObject(roomStub(room));

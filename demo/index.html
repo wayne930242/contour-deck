@@ -397,8 +397,12 @@
       });
     });
     var params = new URLSearchParams(location.search);
-    // ?relay=wss://… points the demo at a relay (docs/PROTOCOL.md); without it the remote stays on this computer.
-    var remoteOptions = { relay: params.get("relay") || undefined };
+    // ?relay=… points the demo at a relay (docs/PROTOCOL.md): the deployed one, or one on this machine for development.
+    // A link cannot point the deck and the phone at anyone else's relay; without the parameter the remote stays on this computer.
+    var relay = params.get("relay") || "";
+    var remoteOptions = {
+      relay: /^(wss:\/\/contour-relay\.wayne930242\.workers\.dev|wss?:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?)\/?$/.test(relay) ? relay : undefined
+    };
     var remoteScript;
     /** contour-deck/remote, added to the page on first use. */
     function loadRemote() {
@@ -414,7 +418,8 @@
     function remoteOf(deck) {
       return loadRemote().then(function (remote) {
         // The deck may have closed while the script loaded.
-        return demo.deck === deck ? (demo.remote = remote.remoteHost(deck, root, remoteOptions)) : null;
+        if (demo.deck !== deck) return null;
+        return remote.remoteHost(deck, root, remoteOptions).then(function (host) { return (demo.remote = host); });
       });
     }
     function open(options) {

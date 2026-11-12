@@ -69,13 +69,15 @@ export class Room extends DurableObject<Env> {
     const server = pair[1];
     const response = new Response(null, { status: 101, webSocket: client });
 
+    // The Worker let a host through only with the room's key: a host here replaces the one before it, whose
+    // connection may be dead without the relay knowing. Its guests start over with the new host, as after a reload.
+    if (role === "host") for (const old of this.seats("host")) this.replaceHost(old);
     const host = this.seats("host")[0];
     const refusal =
-      role === "host"
-        ? host && ([CLOSE.hostTaken, "room already has a host"] as const)
-        : !host
-          ? ([CLOSE.noHost, "no host in this room"] as const)
-          : this.seats("guest").length >= MAX_GUESTS && ([CLOSE.roomFull, "room full"] as const);
+      role === "guest" &&
+      (!host
+        ? ([CLOSE.noHost, "no host in this room"] as const)
+        : this.seats("guest").length >= MAX_GUESTS && ([CLOSE.roomFull, "room full"] as const));
     if (refusal) {
       // Accepted without an attachment: a custom close code needs an open socket, and this one is never a member.
       this.ctx.acceptWebSocket(server);
@@ -112,7 +114,7 @@ export class Room extends DurableObject<Env> {
     if (verdict === "drop") return;
 
     const message = parseMessage(frame);
-    if (message) this.relay(seat, frame, message);
+    if (message) await this.relay(seat, frame, message);
   }
 
   override async webSocketClose(ws: WebSocket): Promise<void> {
@@ -138,7 +140,7 @@ export class Room extends DurableObject<Env> {
     else await this.ctx.storage.setAlarm(due);
   }
 
-  private relay(from: Seat, frame: string, message: Message): void {
+  private async relay(from: Seat, frame: string, message: Message): Promise<void> {
     if (from.member.role === "guest") {
       const host = this.seats("host")[0];
       if (!host) return;
@@ -152,7 +154,17 @@ export class Room extends DurableObject<Env> {
     }
     // A `to` that names no guest in this room is dropped, whatever its type: it never falls back to everyone.
     if (!isSocketId(message.to)) return;
-    for (const guest of this.seats(guestTag(message.to))) send(guest.ws, frame);
+    for (const guest of this.seats(guestTag(message.to))) {
+      send(guest.ws, frame);
+      // A guest the host turned away or took control from leaves the room, so it cannot keep a place.
+      if (message.t === "deny" || message.t === "revoke") await this.expel(guest, CLOSE.removed, "removed by the host");
+    }
+  }
+
+  /** Closes a host that a newer one with the key replaces, and its guests; the room, its alarm included, stays. */
+  private replaceHost(old: Seat): void {
+    shut(old, CLOSE.hostReplaced, "host replaced");
+    for (const guest of this.seats("guest")) shut(guest, CLOSE.roomClosed, "room closed");
   }
 
   /** Open member sockets of one role, or the guest with one id. */

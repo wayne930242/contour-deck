@@ -13,7 +13,7 @@ import { createOverlay } from "./overlay.js";
 import { createPairing } from "./pairing.js";
 import { createPanel } from "./panel.js";
 import type { QrEncoder } from "./panel.js";
-import { guestMessage, isRoom, newRoom } from "./protocol.js";
+import { guestMessage, isRoom, newKey, roomOf } from "./protocol.js";
 import type { Command, GuestMessage, StateMessage } from "./protocol.js";
 import { hostKey, load, save } from "./store.js";
 import { injectStyle } from "./style.js";
@@ -49,7 +49,8 @@ export interface RemoteHost {
 }
 
 interface Stored {
-  room: string;
+  /** The host key; the room is its hash, so the key alone names the session. */
+  key: string;
   token: string | null;
   clock: ClockState | null;
 }
@@ -57,11 +58,11 @@ interface Stored {
 function stored(): Stored | null {
   const value = load(hostKey());
   if (typeof value !== "object" || value === null) return null;
-  const { room, token, clock } = value as Record<string, unknown>;
-  if (!isRoom(room)) return null;
+  const { key, token, clock } = value as Record<string, unknown>;
+  if (!isRoom(key)) return null;
   const state = clock as ClockState | null;
   const usable = !!state && typeof state === "object" && typeof state.spent === "object" && state.spent !== null;
-  return { room, token: typeof token === "string" ? token : null, clock: usable ? state : null };
+  return { key, token: typeof token === "string" ? token : null, clock: usable ? state : null };
 }
 
 /** A request shows once it is this old: a phone that resumes with its token in that time never flashes one. */
@@ -69,20 +70,36 @@ const SETTLE = 300;
 /** `state` goes out on every change and this often between changes. */
 const STATE_EVERY = 15;
 
-const hosts = new WeakMap<Deck, RemoteHost>();
+const hosts = new WeakMap<Deck, Promise<RemoteHost>>();
 
 /**
  * Starts the remote for an open deck, or returns the session it already has.
- * `root` is the deck element given to `createDeck`.
+ * `root` is the deck element given to `createDeck`. It resolves once the room is known: the room is
+ * the hash of the session's key, which takes `crypto.subtle`.
  */
-export function remoteHost(deck: Deck, root: HTMLElement, options: RemoteOptions = {}): RemoteHost {
+export function remoteHost(deck: Deck, root: HTMLElement, options: RemoteOptions = {}): Promise<RemoteHost> {
   const known = hosts.get(deck);
   if (known) return known;
   const app = root.closest<HTMLElement>(".ct-app");
   const stage = app?.querySelector<HTMLElement>(".ct-stage");
   const viewport = app?.querySelector<HTMLElement>(".ct-vp");
-  if (!app || !stage || !viewport) throw new Error("contour-deck: remoteHost needs an open deck");
-  return start(deck, root, options, { app, stage, viewport });
+  if (!app || !stage || !viewport) return Promise.reject(new Error("contour-deck: remoteHost needs an open deck"));
+  const before = stored();
+  const key = before?.key ?? newKey();
+  let closed = false;
+  const stop = deck.on("destroy", () => (closed = true));
+  // Without a relay the room is only the name of a BroadcastChannel; a page without `crypto.subtle` (plain http
+  // off localhost) then uses the key itself, which nothing outside this browser ever sees.
+  const room = options.relay || globalThis.crypto?.subtle ? roomOf(key) : Promise.resolve(key);
+  const pending = room
+    .then(room => {
+      if (closed) throw new Error("contour-deck: the deck closed before its remote started");
+      return start(deck, root, options, { app, stage, viewport }, { key, room, before });
+    })
+    .finally(stop);
+  hosts.set(deck, pending);
+  pending.catch(() => hosts.delete(deck));
+  return pending;
 }
 
 interface Shell {
@@ -91,18 +108,22 @@ interface Shell {
   viewport: HTMLElement;
 }
 
-function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, stage, viewport }: Shell): RemoteHost {
+interface Seat {
+  key: string;
+  room: string;
+  before: Stored | null;
+}
 
+function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, stage, viewport }: Shell, { key, room, before }: Seat): RemoteHost {
   injectStyle(options.nonce);
   const labels = { ...defaultRemoteLabels, ...options.labels };
   const blocks = readModel(root, root.dataset.title || document.title);
   const total = plannedSeconds(blocks, options.skip ?? ["appendix"]);
-  const before = stored();
-  const room = before?.room ?? newRoom();
   const clock = createClock(before?.clock);
   const overlay = createOverlay(stage);
   const local = broadcast(room);
-  const wan = options.relay ? relay(options.relay, { room, role: "host" }) : null;
+  // The key goes to the relay only; the links and the QR carry the room.
+  const wan = options.relay ? relay(options.relay, { room, role: "host", key }) : null;
   const barButton = app.querySelector<HTMLElement>('[data-ct-act="remote"]');
   let alive = true;
   let last: DeckState = deck.state;
@@ -125,7 +146,7 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
     },
   });
 
-  const persist = () => save(hostKey(), { room, token: pairing.token, clock: clock.state } satisfies Stored);
+  const persist = () => save(hostKey(), { key, token: pairing.token, clock: clock.state } satisfies Stored);
 
   function state(): StateMessage {
     const { mode, block, slide, page, step } = deck.state;
@@ -139,7 +160,6 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       steps: current.slides[slide - 1].pages[page - 1].steps.length,
       elapsed: reading.elapsed,
       total,
-      block: current.title.slice(0, 120),
       blockElapsed: reading.blockElapsed,
       blockMinutes: current.minutes || null,
       ratio: Math.round((stage.clientWidth / (stage.clientHeight || 1)) * 1000) / 1000,
@@ -300,7 +320,6 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       hosts.delete(deck);
     },
   };
-  hosts.set(deck, api);
   persist();
   sendState();
   refresh();

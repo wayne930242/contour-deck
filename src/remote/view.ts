@@ -116,8 +116,11 @@ export interface Timers {
   draw(state: StateMessage | null, receivedAt: number): void;
 }
 
-/** The two clocks. Between states they run on the local clock: a state every 15 s is enough to stay in step. */
-export function createTimers(labels: RemoteLabels): Timers {
+/**
+ * The two clocks. Between states they run on the local clock: a state every 15 s is enough to stay in step.
+ * The block title comes from this page's own outline, at the position the state names; the relay carries no text.
+ */
+export function createTimers(labels: RemoteLabels, outline: Outline): Timers {
   const time = h("b", "ct-rmt-time", "0:00");
   const block = h("div", "ct-rmt-blk");
   const title = block.appendChild(h("span"));
@@ -134,7 +137,8 @@ export function createTimers(labels: RemoteLabels): Timers {
       time.toggleAttribute("data-over", !!state.total && elapsed > state.total);
       const budget = state.blockMinutes ? state.blockMinutes * 60 : 0;
       const inBlock = state.blockElapsed + since;
-      title.textContent = `${labels.block}　${state.block}`;
+      const pos = statePos(outline, state);
+      title.textContent = `${labels.block}　${pos ? outline.blocks[pos.b].title : ""}`;
       spent.textContent = formatClock(inBlock) + (budget ? ` / ${formatClock(budget)}` : "");
       spent.toggleAttribute("data-over", !!budget && inBlock > budget);
     },

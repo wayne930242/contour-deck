@@ -1,12 +1,25 @@
 /**
  * The relay of docs/PROTOCOL.md, in the test process: every WebSocket a page opens to `RELAY` is routed here
  * and never reaches the network. It follows the relay rules table row by row; what it cannot do as a route
- * is answer before the upgrade (HTTP 400 and 403), so a bad room name closes the socket with 1008 instead.
+ * is answer before the upgrade (HTTP 400 and 403), so a bad room name or host key closes the socket with 1008 instead.
  */
+import { createHash } from "node:crypto";
 import type { BrowserContext, WebSocketRoute } from "@playwright/test";
 
-/** The relay URL the pages are given; nothing listens there. */
-export const RELAY = "ws://relay.test";
+/** The relay URL the pages are given (a local address, which the demo accepts); nothing listens there. */
+export const RELAY = "ws://127.0.0.1:9";
+
+const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** The room a host key opens: the first 26 Crockford base32 characters of its SHA-256. */
+export function roomOfKey(key: string): string {
+  const hash = createHash("sha256").update(key).digest();
+  let bits = "";
+  for (const byte of hash) bits += byte.toString(2).padStart(8, "0");
+  let room = "";
+  for (let i = 0; i < 26; i++) room += CROCKFORD[parseInt(bits.slice(i * 5, i * 5 + 5), 2)];
+  return room;
+}
 
 const MAX_FRAME = 2048;
 const MAX_GUESTS = 4;
@@ -43,7 +56,7 @@ export class RelayStub {
 
   /** Routes the relay URL in a browser context. Call it for every context of a test, before its pages load. */
   async install(context: BrowserContext): Promise<void> {
-    await context.routeWebSocket(/^ws:\/\/relay\.test\//, socket => this.accept(socket));
+    await context.routeWebSocket(/^ws:\/\/127\.0\.0\.1:9\//, socket => this.accept(socket));
   }
 
   /** Frames of type `t` delivered to one receiver. */
@@ -74,7 +87,16 @@ export class RelayStub {
     const peer: Peer = { id: `g${String(++this.ids).padStart(7, "0")}`, role, socket, tokens: BURST, refilled: Date.now() };
 
     if (role === "host") {
-      if (room.host) return void socket.close({ code: 4009, reason: "room already has a host" });
+      const key = url.searchParams.get("key") ?? "";
+      if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(key) || roomOfKey(key) !== name) return void socket.close({ code: 1008, reason: "bad host key" });
+      // A host with the key replaces the one before: the old host gets 4009, its guests 4000, the room stays.
+      const old = room.host;
+      if (old) {
+        room.host = null;
+        void old.socket.close({ code: 4009, reason: "host replaced" });
+        for (const guest of room.guests.values()) void guest.socket.close({ code: 4000, reason: "room closed" });
+        room.guests.clear();
+      }
       room.host = peer;
       this.rooms.set(name, room);
     } else {
@@ -108,7 +130,13 @@ export class RelayStub {
         if (room.host) this.deliver(name, peer.id, room.host, { ...message, from: peer.id });
       } else if (typeof message.to === "string") {
         const guest = room.guests.get(message.to);
-        if (guest) this.deliver(name, "host", guest, message);
+        if (!guest) return;
+        this.deliver(name, "host", guest, message);
+        // A guest the host turned away or took control from leaves the room.
+        if (message.t === "deny" || message.t === "revoke") {
+          this.leave(name, guest);
+          void guest.socket.close({ code: 4003, reason: "removed by the host" });
+        }
       } else {
         for (const guest of room.guests.values()) this.deliver(name, "host", guest, message);
       }

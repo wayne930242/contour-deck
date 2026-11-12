@@ -16,7 +16,7 @@ describe("HTTP", () => {
 
   it("answers 404 outside /v1", async () => {
     expect(await status(await request("/"))).toBe(404);
-    expect(await status(await request(`/v1/room/${newRoom()}/extra`, { Upgrade: "websocket", Origin: "https://deck.example" }))).toBe(404);
+    expect(await status(await request(`/v1/room/${await newRoom()}/extra`, { Upgrade: "websocket", Origin: "https://deck.example" }))).toBe(404);
   });
 
   it.each([
@@ -29,39 +29,40 @@ describe("HTTP", () => {
   });
 
   it.each([["admin"], [""], ["HOST"]])("answers 400 to role=%s", async (role) => {
-    expect(await status(await upgrade(newRoom(), role))).toBe(400);
+    expect(await status(await upgrade(await newRoom(), role))).toBe(400);
   });
 
   it("answers 400 without a role", async () => {
-    expect(await status(await request(`/v1/room/${newRoom()}`, { Upgrade: "websocket", Origin: "https://deck.example" }))).toBe(400);
+    expect(await status(await request(`/v1/room/${await newRoom()}`, { Upgrade: "websocket", Origin: "https://deck.example" }))).toBe(400);
   });
 
   it("answers 403 before the upgrade when the Origin is not allowed", async () => {
-    const response = await upgrade(newRoom(), "host", "https://evil.example");
+    const response = await upgrade(await newRoom(), "host", { origin: "https://evil.example" });
     expect(response.webSocket).toBeNull();
     expect(await status(response)).toBe(403);
   });
 
   it("answers 403 without an Origin, and before it looks at the room id", async () => {
-    expect(await status(await upgrade(newRoom(), "host", null))).toBe(403);
-    expect(await status(await upgrade("not-a-room", "host", "https://evil.example"))).toBe(403);
+    expect(await status(await upgrade(await newRoom(), "host", { origin: null }))).toBe(403);
+    expect(await status(await upgrade("not-a-room", "host", { origin: "https://evil.example" }))).toBe(403);
   });
 
   it("upgrades an Origin that an any-port entry allows", async () => {
-    const host = await connect(newRoom(), "host", "http://localhost:53124");
+    const host = await connect(await newRoom(), "host", { origin: "http://localhost:53124" });
     expect((await host.hello()).role).toBe("host");
   });
 
   it("answers 426 to a plain GET on a room", async () => {
-    expect(await status(await request(`/v1/room/${newRoom()}?role=host`, { Origin: "https://deck.example" }))).toBe(426);
+    expect(await status(await request(`/v1/room/${await newRoom()}?role=host`, { Origin: "https://deck.example" }))).toBe(426);
   });
 
   it("reaches the same room whatever the case of its id", async () => {
-    const room = newRoom();
+    const room = await newRoom();
     const host = await connect(room, "host");
     await host.hello();
-    const second = await connect(room.toLowerCase(), "host");
-    expect((await second.closed).code).toBe(4009);
+    const guest = await connect(room.toLowerCase(), "guest");
+    await guest.hello();
+    expect(await host.next()).toEqual({ t: "join", id: guest.id });
   });
 });
 
