@@ -114,6 +114,7 @@ From the Cloudflare documentation ([Workers limits][workers-limits], [Durable Ob
   Nothing is billed.
 - Rate Limiting bindings: neither the [binding's page][rate-limit] nor the pricing and limits pages say which plans have them.
   This account is on the free plan; `wrangler deploy` accepted the binding on 2026-11-12 (version `fc1a2dc3-9ee4-4ba2-b2e4-a0eab5d55b53`), and `pnpm smoke --per-address` got 429 after about 60 requests from one address.
+  It accepted the second binding, `HOSTS`, the same day (version `c597204b-f0a0-4704-99a8-26bbca06ff2c`).
 
 What is still exposed on the free plan:
 
