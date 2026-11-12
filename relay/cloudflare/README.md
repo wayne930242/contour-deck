@@ -126,7 +126,7 @@ What is still exposed on the free plan:
 - Guests behind one address (a venue network) share its 60 requests a minute, the presenter's phone included.
   The client keeps that cost low: a guest refused with `4029` (room full) does not retry by itself, and one refused with `4004` (no host) waits up to a minute between tries.
   Still, more than about 60 phones opening within a minute, or one person sending requests on purpose, makes the presenter's phone wait until that minute is over; a phone on its mobile network is not affected.
-  The deck's own connection counts on `HOSTS` and is not affected either.
+  The deck's own connection counts on `HOSTS`, so guests cannot affect it; a person on the same network who sends host requests for a room of their own on purpose can still delay its reconnects (an open connection stays up).
 
 [workers-limits]: https://developers.cloudflare.com/workers/platform/limits/
 [do-pricing]: https://developers.cloudflare.com/durable-objects/platform/pricing/
