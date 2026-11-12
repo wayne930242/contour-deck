@@ -8,6 +8,7 @@ export const defaultLabels: Labels = {
   prev: "上一步",
   next: "下一步",
   exit: "離開簡報",
+  remote: "遙控",
   here: "目前位置",
   appendix: "書面",
   rail: "整份簡報的位置",

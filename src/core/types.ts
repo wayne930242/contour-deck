@@ -25,6 +25,7 @@ export interface Labels {
   prev: string;
   next: string;
   exit: string;
+  remote: string;
   here: string;
   appendix: string;
   rail: string;
@@ -51,6 +52,11 @@ export interface DeckOptions {
   /** Read and write `?view=` and `?at=`. Default `true`. */
   url?: boolean;
   labels?: Partial<Labels>;
+  /**
+   * The remote: with this option the bar has a remote button, and the button and the `R` key call it.
+   * It usually loads `contour-deck/remote` on first use. Without it the deck has neither.
+   */
+  remote?: (deck: Deck) => void;
 }
 
 export interface Deck {
@@ -64,9 +70,15 @@ export interface Deck {
   prev(): void;
   /** Go to a position (`"4.4.2"` or an element id), with the transition that fits the distance. */
   go(at: string): Promise<void>;
+  /** The slide before or after, as the left and right arrow keys: it leaves the block at its ends. */
+  slideBy(direction: 1 | -1): void;
+  /** One stop up or down inside the slide, as the up and down arrow keys. */
+  pageBy(direction: 1 | -1): void;
   on(type: "change", listener: (change: DeckChange) => void): () => void;
   /** `exit` fires when the reader leaves: Esc on the outline, or the close button of the bar. The host usually calls `destroy()`. */
   on(type: "exit", listener: () => void): () => void;
+  /** `destroy` fires once, at the start of `destroy()`, while the shell is still in the document. */
+  on(type: "destroy", listener: () => void): () => void;
   readonly state: DeckState;
   /** Puts the deck element back where it was and removes everything the core added. */
   destroy(): void;

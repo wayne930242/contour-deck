@@ -29,7 +29,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   const smooth = (): ScrollBehavior => (reduced() ? "auto" : "smooth");
   const abort = new AbortController();
   const { signal } = abort;
-  const listeners = { change: new Set<(change: DeckChange) => void>(), exit: new Set<() => void>() };
+  const listeners = { change: new Set<(change: DeckChange) => void>(), exit: new Set<() => void>(), destroy: new Set<() => void>() };
 
   let mode: Mode = "overview";
   let pos: Pos = { b: 0, s: 0, p: 0 };
@@ -57,7 +57,9 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   const rail = buildRail(blocks, labels);
   const threeDButton = button("3d", labels.threeD);
   const notesButton = button("notes", labels.notes);
-  bar.append(button("overview", labels.overview), titleEl, rail.el, threeDButton, button("script", labels.script), notesButton, button("exit", "✕", labels.exit));
+  bar.append(button("overview", labels.overview), titleEl, rail.el, threeDButton, button("script", labels.script), notesButton);
+  if (options.remote) bar.append(button("remote", labels.remote));
+  bar.append(button("exit", "✕", labels.exit));
   const viewport = app.appendChild(h("main", "ct-vp"));
   const overview = buildOverview(blocks, labels);
   const stage = h("div", "ct-stage", "", { tabindex: -1 });
@@ -447,7 +449,8 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
 
   /** Leaving is the host's move: it usually answers `exit` with `destroy()`. */
   const exit = () => busy || listeners.exit.forEach(listener => listener());
-  const actions: Record<string, () => unknown> = { overview: toOverview, "3d": toggle3d, script: toScript, notes: toggleNotes, prev, next, exit };
+  const remote = () => options.remote?.(api);
+  const actions: Record<string, () => unknown> = { overview: toOverview, "3d": toggle3d, script: toScript, notes: toggleNotes, remote, prev, next, exit };
 
   app.addEventListener(
     "click",
@@ -498,7 +501,8 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
       const onControl = !!target.closest?.("button,a");
       const activates = key === " " || key === "Enter";
       let run: (() => unknown) | undefined;
-      if (mode === "overview") {
+      if (key === "r" && options.remote && mode !== "notes") run = remote;
+      else if (mode === "overview") {
         if (key === "3") run = toggle3d;
         else if (key === "Escape") run = exit;
         else if (key.startsWith("Arrow")) run = () => focusThumb(key === "ArrowRight" || key === "ArrowDown" ? 1 : -1);
@@ -562,6 +566,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   function destroy() {
     if (!alive) return;
     alive = false;
+    listeners.destroy.forEach(listener => listener());
     abort.abort();
     cancelAnimationFrame(frame);
     clearTimeout(idle);
@@ -578,13 +583,16 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     writeUrl(true);
   }
 
-  return {
+  const onStage = (move: () => unknown) => void (busy || mode !== "stage" || move());
+  const api: Deck = {
     overview: toOverview,
     open: at => goTo(resolve(at)),
     go: at => goTo(resolve(at)),
     next,
     prev,
-    on(type: "change" | "exit", listener: ((change: DeckChange) => void) | (() => void)) {
+    slideBy: direction => onStage(() => slideBy(direction)),
+    pageBy: direction => onStage(() => stepV(direction)),
+    on(type: "change" | "exit" | "destroy", listener: ((change: DeckChange) => void) | (() => void)) {
       const set = listeners[type] as Set<typeof listener>;
       set.add(listener);
       return () => set.delete(listener);
@@ -594,4 +602,5 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     },
     destroy,
   };
+  return api;
 }
