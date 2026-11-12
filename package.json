@@ -1,0 +1,84 @@
+{
+  "name": "contour-deck",
+  "version": "0.1.0",
+  "description": "Outline-first slide decks on real DOM: blocks, slides, pages.",
+  "keywords": [
+    "slides",
+    "presentation",
+    "astro-component"
+  ],
+  "license": "MPL-2.0",
+  "author": "洪偉 <me@wayneh.tw>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wayne930242/contour-deck.git"
+  },
+  "homepage": "https://github.com/wayne930242/contour-deck#readme",
+  "bugs": {
+    "url": "https://github.com/wayne930242/contour-deck/issues"
+  },
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./remark": {
+      "types": "./dist/remark/index.d.ts",
+      "default": "./dist/remark/index.js"
+    },
+    "./rehype": {
+      "types": "./dist/rehype/index.d.ts",
+      "default": "./dist/rehype/index.js"
+    },
+    "./astro": "./dist/astro/Deck.astro",
+    "./host": {
+      "types": "./dist/astro/host.d.ts",
+      "default": "./dist/astro/host.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "LICENSE",
+    "dist",
+    "docs/CONTRACT.md",
+    "styles"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:browser": "node scripts/build.mjs && playwright test --pass-with-no-tests",
+    "size": "node scripts/size.mjs",
+    "demo": "node scripts/build.mjs && node scripts/serve.mjs",
+    "fixtures": "node scripts/build.mjs && node scripts/fixtures.mjs",
+    "demo:decks": "node scripts/build.mjs && node scripts/demo-decks.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^26.6.6",
+    "esbuild": "0.28.2",
+    "rehype-stringify": "^10.0.1",
+    "remark-cjk-friendly": "^2.3.4",
+    "remark-directive": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "typescript": "7.0.2",
+    "unified": "^11.0.5",
+    "vfile": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "5.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "packageManager": "pnpm@12.9.1"
+}

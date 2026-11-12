@@ -1,0 +1,59 @@
+/* Demo page: the site theme and the content components. None of this ships in the package. */
+:root {
+  color-scheme: light dark;
+  --background: #f5f5f2; --foreground: #111111; --accent: #e3311d; --accent-foreground: #ffffff;
+  --muted: #e7e7e2; --muted-foreground: #686864; --border: #c9c9c3;
+  --panel: color-mix(in srgb, var(--foreground) 4%, var(--background));
+  --tint: color-mix(in srgb, var(--accent) 10%, var(--background));
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #111111; --foreground: #f2f2ed; --accent: #ff5948; --accent-foreground: #111111;
+    --muted: #242421; --muted-foreground: #a6a6a0; --border: #444440;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--background); color: var(--foreground); font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; line-height: 1.5; -webkit-text-size-adjust: 100%; }
+
+/* document view: the deck as an article */
+.doc { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.doc-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.doc-head h1 { font-size: 1.1rem; margin: 0; flex: 1; }
+.doc-head button, .doc-head a { font: 650 .72rem/1 var(--mono); letter-spacing: .08em; padding: .6rem .8rem; border: 1px solid var(--foreground); background: var(--foreground); color: var(--background); cursor: pointer; text-decoration: none; }
+.doc-head a { background: var(--background); color: var(--foreground); border-color: var(--border); }
+/* Scoped with a child combinator: an open deck moves into the stage, and these rules stop matching it. */
+.doc > [data-ct-deck] > [data-ct-block]::before { content: attr(data-title); display: block; font: 650 .7rem/1 var(--mono); letter-spacing: .1em; color: var(--muted-foreground); margin: 2.2rem 0 .6rem; }
+.doc > [data-ct-deck] [data-ct-slide] { border: 1px solid var(--border); padding: .4rem 1.2rem; margin-bottom: 1rem; }
+.doc > [data-ct-deck] [data-ct-page] { padding: .8rem 0; }
+
+/* content components */
+.kicker { font: 600 .62em/1.3 var(--mono); letter-spacing: .08em; color: var(--muted-foreground); margin-block: 0 .7em; }
+[data-ct-page] h1 { font-size: 2.05em; line-height: 1.12; letter-spacing: -.03em; font-weight: 900; margin-block: 0 .4em; text-wrap: balance; }
+[data-ct-page] h2 { font-size: 1.45em; line-height: 1.2; letter-spacing: -.02em; font-weight: 850; margin-block: 0 .55em; text-wrap: balance; }
+[data-ct-page] h3 { font-size: 1.05em; font-weight: 800; margin-block: 0 .4em; }
+[data-ct-page] p { margin-block: .5em; }
+[data-ct-page] :is(ul, ol) { padding-left: 1.3em; margin-block: .4em; }
+[data-ct-page] li { margin-block: .35em; }
+[data-ct-page] strong { font-weight: 850; }
+.sub { color: var(--muted-foreground); font-size: .8em; }
+.tbl { overflow-x: auto; margin-block: .6em; }
+.tbl table { border-collapse: collapse; width: 100%; font-size: .78em; }
+.tbl :is(th, td) { border: 1px solid var(--border); padding: .45em .6em; text-align: left; vertical-align: top; }
+.tbl th { background: var(--panel); font-weight: 700; }
+.grid { display: grid; gap: .8em; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); margin-block: .6em; }
+.cell, .step, .num, .quote { border: 1px solid var(--border); background: var(--panel); padding: .75em .9em; font-size: .82em; }
+:is(.cell, .step) > :first-child { margin-top: 0; }
+:is(.cell, .step) > :last-child { margin-bottom: 0; }
+.flow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1.7em; margin-block: .6em; }
+.step { position: relative; }
+.step + .step::before { content: "→"; position: absolute; left: -1.35em; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
+.nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8em; margin-block: .6em; }
+.num b { display: block; font-size: 2.6em; line-height: 1.05; font-weight: 900; letter-spacing: -.04em; color: var(--accent); }
+.quote { background: var(--tint); margin: .6em 0; }
+@media (max-width: 700px) {
+  .grid, .nums { grid-template-columns: 1fr; }
+  .flow { grid-auto-flow: row; gap: 1.5em; }
+  .step + .step::before { content: "↓"; left: 50%; top: -1.45em; transform: translateX(-50%); }
+}

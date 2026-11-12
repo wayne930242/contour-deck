@@ -1,0 +1,3 @@
+/* Without the script the deck is a plain document; only the speaker notes are hidden. */
+[data-ct-notes] { display: none; }
+html[data-ct-open] { overflow: hidden; }

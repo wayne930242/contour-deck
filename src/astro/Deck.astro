@@ -1,0 +1,61 @@
+---
+/**
+ * The Astro host of a Contour deck. Put the rendered Markdown (the output of `contour-deck/rehype`)
+ * in the slot; without JavaScript it stays a document.
+ *
+ *   <Deck docClass="prose" legacy><Content /></Deck>
+ *   <button data-ct-start>START</button>
+ *   <a href="?view=notes" data-ct-start="notes">Notes</a>
+ *
+ * `?view=deck` and `?view=notes` open the deck on load; so does any `[data-ct-start]` control.
+ *
+ * The build copies this file to dist/astro/, and the import paths are the ones that hold there:
+ * ../style.css is dist/style.css, ./host.js the compiled src/astro/host.ts.
+ */
+import "../style.css";
+
+interface Props {
+  /** Classes of the wrapper in both views. */
+  class?: string;
+  /**
+   * Classes the wrapper carries only while the deck is closed, such as a prose class.
+   * The open deck stays inside the wrapper, so these would otherwise restyle the stage and the shell.
+   */
+  docClass?: string;
+  /** `snap`: one wheel gesture moves one stop. `free`: native scrolling. Default `snap`. */
+  paging?: "snap" | "free";
+  /** How the outline looks on entry. Default `flat`. */
+  overview?: "flat" | "3d";
+  /** Accept old reveal.js links, `?view=slides&slide=h.v`, through `data-legacy`. */
+  legacy?: boolean;
+}
+
+const { class: className, docClass, paging, overview, legacy = false } = Astro.props;
+---
+
+<div
+  data-ct-host
+  class:list={[className, docClass]}
+  data-ct-doc-class={docClass}
+  data-ct-paging={paging}
+  data-ct-overview={overview}
+  data-ct-legacy={legacy ? "" : undefined}
+>
+  <slot />
+</div>
+
+<script>
+  import { mountAll, type Host } from "./host.js";
+
+  let hosts: Host[] = mountAll();
+
+  // Under Astro's client router this module runs once; each later page mounts on page-load,
+  // and an open deck is put back before the old page is swapped out.
+  document.addEventListener("astro:page-load", () => {
+    hosts = mountAll();
+  });
+  document.addEventListener("astro:before-swap", () => {
+    for (const host of hosts) host.unmount();
+    hosts = [];
+  });
+</script>

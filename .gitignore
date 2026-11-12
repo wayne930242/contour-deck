@@ -1,0 +1,8 @@
+node_modules/
+dist/
+demo/assets/
+test-results/
+playwright-report/
+scratch/
+.DS_Store
+demo/decks/

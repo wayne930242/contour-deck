@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>contour-deck demo｜大綱優先的簡報</title>
+<!--
+  A plain-HTML deck that follows docs/CONTRACT.md: a talk about the framework itself
+  (7 blocks, 21 slides, 34 pages). Build the assets first: pnpm build.
+  Without ?view= this is a document; START, ?view=deck, or ?view=notes opens the deck.
+-->
+<link rel="stylesheet" href="assets/contour-deck.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main class="doc">
+  <header class="doc-head">
+    <h1>大綱優先的簡報</h1>
+    <a href="?view=notes" id="notes-link">講稿模式</a>
+    <button id="start">START</button>
+  </header>
+
+  <div data-ct-deck data-title="大綱優先的簡報">
+
+      <section data-ct-block data-title="開場" data-short="開場" data-kind="cover">
+        <section data-ct-slide id="s-1-1" data-title="簡報為什麼要先看全貌？">
+          <section data-ct-page>
+            <h4 class="kicker">contour-deck 示範｜十二分鐘的演講</h4>
+            <h1>簡報為什麼要先看全貌？</h1>
+            <p>用 contour-deck 把一份文件變成可以講、可以讀、可以跳著看的簡報</p>
+            <p class="sub">示範簡報｜內容為自擬，用來展示每一種版面</p>
+            <aside data-ct-notes><p>〔全場約 12 分鐘〕</p><p>大家好。這是一份示範簡報，講的是這個簡報框架本身：它為什麼先給輪廓，再進細節，以及這個想法怎麼落實在網頁上。</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="一、為什麼大綱優先" data-short="一" data-minutes="3">
+        <section data-ct-slide id="s-2-1" data-title="聽的人需要先看到全貌嗎？">
+          <section data-ct-page>
+            <h4 class="kicker">一、為什麼大綱優先</h4>
+            <h2>聽的人需要先看到全貌嗎？</h2>
+            <p>我們的回答：<strong>需要</strong>，而且全貌要能隨時叫出來，不能只存在講者的腦子裡。</p>
+            <aside data-ct-notes><p>〔一、約 3 分鐘〕</p><p>第一個問題：聽的人需不需要先看到全貌？我們的回答是需要，而且全貌要能隨時叫出來，不能只存在講者的腦子裡。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-2-2" data-title="三個設計原則">
+          <section data-ct-page>
+            <h2>三個設計原則</h2>
+            <ol>
+              <li data-ct-step>內容只存在<strong>一份</strong>：文件與簡報用同一批節點。</li>
+              <li data-ct-step>位置由<strong>區塊、投影片、頁</strong>三層決定。</li>
+              <li data-ct-step>網址記得<strong>你在哪一頁</strong>，重新整理也回得來。</li>
+            </ol>
+            <aside data-ct-notes><p>設計原則有三條。第一，內容只存在一份，文件與簡報用同一批節點。第二，位置由區塊、投影片、頁三層決定。第三，網址記得你在哪一頁，重新整理也回得來。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-2-3" data-title="三種檢視">
+          <section data-ct-page>
+            <h2>三種檢視</h2>
+            <div class="grid" style="--cols:3">
+              <div class="cell"><p><strong>文件</strong></p><p>沒有啟動簡報時，整份內容就是一頁可以捲動的文章。</p></div>
+              <div class="cell"><p><strong>輪廓</strong></p><p>每個區塊一格，每張投影片一張縮圖，一眼看完結構。</p></div>
+              <div class="cell"><p><strong>講稿</strong></p><p>同一份內容的逐頁講稿，在手機上也能讀。</p></div>
+            </div>
+            <aside data-ct-notes><p>同一份內容有三種檢視。文件是沒有啟動簡報時的一頁長文章；輪廓是每個區塊一格、每張投影片一張縮圖；講稿是逐頁的稿子，在手機上也能讀。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-2-4" data-title="範例：一場十二分鐘的演講">
+          <section data-ct-page>
+            <h2>範例：一場十二分鐘的演講</h2>
+            <p class="sub">這份示範簡報本身</p>
+            <div class="nums" data-ct-sk="nums">
+              <div class="num"><b>12 分鐘</b>預定的演講長度<br><span class="sub">分成五個主要區塊</span></div>
+              <div class="num"><b>34 頁</b>全部的頁數<br><span class="sub">其中十頁是不在會上念的附錄</span></div>
+            </div>
+            <aside data-ct-notes><p>舉這份示範簡報本身當例子。預定講十二分鐘，分成五個主要區塊；全部有三十四頁，其中十頁是附錄，只供書面閱讀。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>範例：一場十二分鐘的演講</h2>
+            <div class="tbl"><table>
+              <tr><th></th><th>主要區塊</th><th>附錄</th></tr>
+              <tr><td>用途</td><td>會上講</td><td>會後讀</td></tr>
+              <tr><td>講稿</td><td>每頁都有</td><td>不需要</td></tr>
+              <tr><td>是否計入講述時間</td><td><strong>計入</strong></td><td><strong>不計入</strong></td></tr>
+            </table></div>
+            <p>附錄用 <strong>kind=appendix</strong> 標出，翻頁時不會被帶進去。</p>
+            <aside data-ct-notes><p>主要區塊在會上講，每一頁都有講稿；附錄留給會後閱讀，不計入講述時間。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-2-5" data-title="頁與步驟">
+          <section data-ct-page>
+            <h2>頁與步驟</h2>
+            <p>一頁裡的內容可以分幾步出現：表格的每一列、清單的每一項，各算一步。</p>
+            <div class="tbl"><table>
+              <tr><th>元素</th><th>一步是什麼</th><th>預設</th></tr>
+              <tr data-ct-step><td>清單</td><td>一個項目</td><td>逐項出現</td></tr>
+              <tr data-ct-step><td>表格</td><td>一列</td><td>逐列出現</td></tr>
+            </table></div>
+            <aside data-ct-notes><p>一頁裡的內容可以分幾步出現。清單的每一項、表格的每一列，各算一步。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>從步驟到頁</h2>
+            <div class="flow" data-ct-sk="flow">
+              <div class="step"><p><strong>步驟</strong></p><p>按一下，多出一項</p></div>
+              <div class="step"><p><strong>頁</strong></p><p>步驟用完，換到下一頁</p></div>
+              <div class="step"><p><strong>投影片</strong></p><p>頁用完，換到下一張</p></div>
+            </div>
+            <aside data-ct-notes><p>按一下前進，先出現下一步；步驟用完，換到下一頁；頁用完，換到下一張投影片。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-2-6" data-title="全貌與內容各有用處">
+          <section data-ct-page>
+            <h2>全貌與內容各有用處</h2>
+            <p>輪廓回答<strong>現在在哪裡</strong>，內容回答<strong>這裡說了什麼</strong>：兩者不必擇一。</p>
+            <aside data-ct-notes><p>輪廓回答現在在哪裡，內容回答這裡說了什麼，兩者不必擇一。</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="二、三層結構" data-short="二" data-minutes="1">
+        <section data-ct-slide id="s-3-1" data-title="區塊、投影片、頁">
+          <section data-ct-page>
+            <h4 class="kicker">二、三層結構</h4>
+            <h2>區塊、投影片、頁</h2>
+            <ul>
+              <li data-ct-step><strong>區塊</strong>：講述的一個段落，有標題與預估時間</li>
+              <li data-ct-step><strong>投影片</strong>：區塊裡的一個主題，縮圖在輪廓上就是一格</li>
+              <li data-ct-step><strong>頁</strong>：投影片裡往下的一屏，每頁可以有自己的講稿</li>
+            </ul>
+            <aside data-ct-notes><p>〔二、約 1 分鐘〕</p><p>結構只有三層。區塊是講述的一個段落，有標題與預估時間；投影片是區塊裡的一個主題；頁是投影片裡往下的一屏，每頁可以有自己的講稿。</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="三、翻頁怎麼運作" data-short="三" data-minutes="5">
+        <section data-ct-slide id="s-4-1" data-title="翻頁怎麼運作？">
+          <section data-ct-page>
+            <h4 class="kicker">三、翻頁怎麼運作</h4>
+            <h1>翻頁怎麼運作？</h1>
+            <aside data-ct-notes><p>〔三、約 5 分鐘〕</p><p>第三個區塊講翻頁：按下一步的時候，畫面到底發生什麼事。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-4-2" data-title="線性前進">
+          <section data-ct-page>
+            <h2>線性前進</h2>
+            <ul>
+              <li data-ct-step>一個鍵走到底：先<strong>步驟</strong>，再<strong>頁</strong>，再<strong>投影片</strong></li>
+              <li data-ct-step>往回走的時候，<strong>一步一步收起來</strong>，不會一次跳掉整頁</li>
+              <li data-ct-step>前一張投影片回來時，內容<strong>已經全部出現</strong></li>
+              <li data-ct-step>主要部分的盡頭就是盡頭：附錄要<strong>自己點進去</strong></li>
+            </ul>
+            <aside data-ct-notes><p>線性前進有四個特點。一個鍵走到底，先步驟，再頁，再投影片。往回走的時候一步一步收起來。前一張投影片回來時內容已經全部出現。主要部分的盡頭就是盡頭，附錄要自己點進去。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>停在每一頁</h2>
+            <p>每一頁的頂端是一個停靠點：翻到這裡，畫面會停穩。</p>
+            <div class="tbl"><table>
+              <tr><th></th><th>鍵盤</th><th>觸控</th></tr>
+              <tr><td>下一頁</td><td><strong>空白鍵</strong></td><td>往上滑</td></tr>
+              <tr><td>上一頁</td><td><strong>Shift + 空白鍵</strong></td><td>往下滑</td></tr>
+            </table></div>
+            <p>兩種操作走的是<strong>同一套位置</strong>，換手操作不會迷路。</p>
+            <aside data-ct-notes><p>每一頁的頂端是一個停靠點，翻到這裡畫面會停穩。鍵盤與觸控走的是同一套位置，換手操作不會迷路。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-4-3" data-title="位置來自捲動">
+          <section data-ct-page>
+            <h2>位置來自捲動</h2>
+            <div class="flow" data-ct-sk="flow">
+              <div class="step"><p><strong>使用者捲動</strong></p><p>滑鼠滾輪、觸控板、手指滑動都一樣</p></div>
+              <div class="step"><p><strong>瀏覽器停在吸附點</strong></p><p>由 CSS scroll snap 決定停在哪裡</p></div>
+              <div class="step"><p><strong>程式讀出位置</strong></p><p>網址、頁碼與講稿跟著更新</p></div>
+            </div>
+            <p>所以程式<strong>不攔截</strong>原生的捲動。</p>
+            <aside data-ct-notes><p>位置從捲動來。使用者捲動，瀏覽器停在吸附點，程式再讀出位置，更新網址、頁碼與講稿。所以程式不攔截原生的捲動。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>兩種捲動的取捨</h2>
+            <div class="grid">
+              <div class="cell"><p><strong>交給瀏覽器</strong></p><p>手感與其他網頁一致，觸控慣性不必自己模擬。</p></div>
+              <div class="cell"><p><strong>自己接管</strong></p><p>可以做精細的動畫，但要負責所有裝置的細節。</p></div>
+            </div>
+            <p>預設的做法是：</p>
+            <blockquote class="quote">能交給瀏覽器的，就不要自己寫。</blockquote>
+            <p>需要的時候，可以改成自由捲動，連滾輪也交還給瀏覽器。</p>
+            <aside data-ct-notes><p>兩種做法各有取捨：交給瀏覽器，手感一致；自己接管，動畫能更精細，但要處理所有裝置的細節。預設是能交給瀏覽器的就不要自己寫。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-4-4" data-title="長頁怎麼停靠？">
+          <section data-ct-page>
+            <h2>長頁怎麼停靠？</h2>
+            <p>一頁的內容比螢幕高的時候，這一頁會多出停靠點。</p>
+            <p><strong>多出來的部分</strong>：停靠點對齊這一頁的底部，讓最後一段也能完整讀到。</p>
+            <aside data-ct-notes><p>但是一頁的內容可能比螢幕高。這時候這一頁會多出停靠點。多出來的部分，停靠點對齊這一頁的底部。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>長頁怎麼停靠？兩個例子</h2>
+            <h3>步驟讓頁面變長</h3>
+            <div class="tbl"><table>
+              <tr><th>狀態</th><th>表格列數</th><th>頁面高度</th><th>停靠點</th></tr>
+              <tr data-ct-step><td>剛換到這一頁</td><td>0</td><td>一屏</td><td>頁首</td></tr>
+              <tr data-ct-step><td>步驟全部出現</td><td>全部</td><td><strong>超過一屏</strong></td><td>頁首與頁尾</td></tr>
+            </table></div>
+            <p>還沒出現的表格列<strong>不佔空間</strong>，頁面跟著步驟一起變長。</p>
+            <h3>兩份表格接在一起</h3>
+            <div class="tbl"><table>
+              <tr><th>內容</th><th>放在</th><th>步驟數</th><th>備註</th></tr>
+              <tr data-ct-step><td>第一份表格</td><td>頁面上半</td><td>2</td><td>先出現</td></tr>
+              <tr data-ct-step><td>第二份表格</td><td>頁面下半</td><td>2</td><td><strong>後出現</strong></td></tr>
+            </table></div>
+            <p>再假設講者要把整頁一次講完：頁面最長的時候，畫面要能捲到最底。</p>
+            <p>先看第一種情況：頁面剛換進來，只有標題、說明與表頭，所有的列都還沒出現，高度剛好一屏。</p>
+            <p>再看另一種情況：步驟一個一個出現，頁面越來越長，畫面跟著往下捲，讓剛出現的那一列留在視線裡。</p>
+            <blockquote class="quote">換頁的規則不變：<strong>先走完這一頁的步驟與長度</strong>，才換到下一頁。</blockquote>
+            <aside data-ct-notes><p>長頁多出來的部分會多一個停靠點。還沒出現的表格列不佔空間，頁面會跟著步驟一起變長。</p><p>再看另一個方向：兩份表格接在一起，頁面最長的時候，畫面要能捲到最底。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="tradeoff" data-title="兩種做法">
+          <section data-ct-page>
+            <h2>兩種做法</h2>
+            <div class="grid">
+              <div class="cell"><h3>每頁都是一屏</h3><ul><li>規則簡單</li><li>內容必須壓縮</li></ul></div>
+              <div class="cell"><h3>允許長頁</h3><ul><li>內容不必刪減</li><li>多出一個停靠點</li><li>需要處理長頁的步驟與捲動</li></ul></div>
+            </div>
+            <aside data-ct-notes><p>所以有兩種做法。每頁都是一屏，規則簡單，但內容必須壓縮；允許長頁，內容不必刪減，但要處理長頁的步驟與捲動。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-4-6" data-title="想問大家">
+          <section data-ct-page>
+            <h2>想問大家</h2>
+            <ol>
+              <li data-ct-step>你的簡報通常是一頁一屏，還是會有長頁？</li>
+              <li data-ct-step>如果有長頁，聽眾看得到最後一段嗎？</li>
+              <li data-ct-step>如果沒有，你刪掉的內容放在哪裡？</li>
+              <li data-ct-step>輪廓上的縮圖，能不能幫你找到那一頁？</li>
+            </ol>
+            <aside data-ct-notes><p>最後想請大家想四個問題：你的簡報通常是一頁一屏嗎？有長頁的話聽眾看得到最後一段嗎？沒有的話刪掉的內容放在哪裡？輪廓上的縮圖能不能幫你找到那一頁？</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="四、在網站上使用" data-short="四" data-minutes="2">
+        <section data-ct-slide id="s-5-1" data-title="怎麼放進網站？">
+          <section data-ct-page>
+            <h4 class="kicker">四、在網站上使用</h4>
+            <h2>怎麼放進網站？</h2>
+            <ul>
+              <li data-ct-step>只要符合<strong>區塊、投影片、頁</strong>三層的 HTML，就能啟動</li>
+              <li data-ct-step>Markdown 可以用 remark 與 rehype 外掛轉成同樣的結構</li>
+              <li data-ct-step>不符合的結構會<strong>在掛載前就報錯</strong>，不會留下半套畫面</li>
+            </ul>
+            <aside data-ct-notes><p>〔四、約 2 分鐘〕</p><p>第四個區塊講怎麼放進網站。符合三層結構的 HTML 就能啟動；Markdown 可以用外掛轉成同樣的結構；不符合的結構會在掛載前就報錯。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>怎麼放進網站？</h2>
+            <div class="flow" data-ct-sk="flow">
+              <div class="step"><p><strong>寫 Markdown</strong></p><p>用分隔線與標題劃出投影片</p></div>
+              <div class="step"><p><strong>外掛轉換</strong></p><p>輸出帶有 data 屬性的 HTML</p></div>
+              <div class="step"><p><strong>啟動簡報</strong></p><p>同一份節點，文件與簡報共用</p></div>
+            </div>
+            <p><strong>從 Markdown 到簡報，中間沒有第二份內容。</strong></p>
+            <aside data-ct-notes><p>流程是：寫 Markdown，用外掛轉換成帶有 data 屬性的 HTML，再啟動簡報。從 Markdown 到簡報，中間沒有第二份內容。</p></aside>
+          </section>
+          <section data-ct-page>
+            <h2>文件與簡報的差別</h2>
+            <div class="grid">
+              <div class="cell"><p><strong>文件模式</strong></p><p>沒有啟動簡報時，所有頁依序排列，講稿隱藏，步驟全部顯示。</p></div>
+              <div class="cell"><p><strong>簡報模式</strong></p><p>啟動後同一批節點搬進舞台，離開時完整放回原位。</p></div>
+            </div>
+            <p>搜尋引擎與沒有 JavaScript 的讀者，看到的是<strong>完整的文件</strong>。</p>
+            <aside data-ct-notes><p>文件模式裡，所有頁依序排列，講稿隱藏，步驟全部顯示。簡報模式把同一批節點搬進舞台，離開時完整放回原位。</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="五、小結" data-short="五" data-minutes="1">
+        <section data-ct-slide id="s-6-1" data-title="兩個建議">
+          <section data-ct-page>
+            <h4 class="kicker">五、小結</h4>
+            <div class="grid">
+              <div class="cell"><p><strong>先寫文件</strong></p><p>把內容寫成一份可以直接閱讀的文章，再決定哪裡分頁。</p></div>
+              <div class="cell"><p><strong>再看輪廓</strong></p><p>用輪廓檢查結構，每個區塊的時間是否分配得合理。</p></div>
+            </div>
+            <aside data-ct-notes><p>〔五、約 1 分鐘〕</p><p>最後兩個建議。第一，先寫文件，把內容寫成一份可以直接閱讀的文章，再決定哪裡分頁。第二，再看輪廓，檢查結構與每個區塊的時間分配。</p></aside>
+          </section>
+        </section>
+        <section data-ct-slide id="s-6-2" data-title="謝謝">
+          <section data-ct-page>
+            <h1>謝謝</h1>
+            <p>往下是書面補充，會上不念。</p>
+            <aside data-ct-notes><p>謝謝大家。</p></aside>
+          </section>
+        </section>
+      </section>
+
+      <section data-ct-block data-title="附錄（書面，會上不念）" data-short="附" data-kind="appendix">
+        <section data-ct-slide id="s-7-1" data-title="附錄 A｜結構與命名">
+          <section data-ct-page>
+            <h4 class="kicker">附錄 A｜結構與命名（書面）</h4>
+            <h2>1. 三層結構的命名</h2>
+            <p>區塊、投影片、頁是文件裡的稱呼；在 HTML 裡對應 <code>data-ct-block</code>、<code>data-ct-slide</code> 與 <code>data-ct-page</code> 三個屬性。</p>
+          </section>
+          <section data-ct-page>
+            <h2>2. 位置的寫法</h2>
+            <p>位置寫成 <code>區塊.投影片.頁</code>，例如 <code>4.4.2</code>；也可以直接用投影片的 id。網址的 <code>at</code> 參數使用同一種寫法。</p>
+          </section>
+          <section data-ct-page>
+            <h2>3. 為什麼用查詢字串</h2>
+            <p>位置放在網址的查詢字串，不放在片段，因為有些站台在轉址時會丟掉片段。</p>
+            <p>代價是每次換頁都要更新網址；框架用取代而不是新增歷史紀錄，讓返回鍵不會被一頁一頁的紀錄塞滿。</p>
+          </section>
+          <section data-ct-page>
+            <h2>4. 附錄與主要部分</h2>
+            <p>附錄用 <code>data-kind="appendix"</code> 標出，行為有三項：</p>
+            <ul>
+              <li>主要部分的最後一張投影片，往後翻不會進入附錄。</li>
+              <li>在附錄裡往後翻，到附錄的最後一張就停。</li>
+              <li>輪廓上的區塊會帶一個「書面」的標記。</li>
+            </ul>
+            <p>需要進附錄，從輪廓點進去，或用網址直接指到那一張。</p>
+          </section>
+        </section>
+        <section data-ct-slide id="s-7-2" data-title="附錄 B｜捲動與吸附">
+          <section data-ct-page>
+            <h4 class="kicker">附錄 B｜捲動與吸附（書面）</h4>
+            <h2>1. 吸附的強度</h2>
+            <p>預設的吸附強度是「接近」：捲動停在離停靠點夠近的地方，才會拉過去。需要更強的手感，可以改成「強制」。</p>
+          </section>
+          <section data-ct-page>
+            <h2>2. 自由捲動</h2>
+            <p>選項 <code>paging: "free"</code> 把滾輪交還給瀏覽器，鍵盤與按鈕仍然照常翻頁。適合內容很長、希望讀者自己控制節奏的頁面。</p>
+          </section>
+          <section data-ct-page>
+            <h2>3. 減少動態效果</h2>
+            <p>讀者的系統設定要求減少動態效果時，區塊之間的轉場縮短成一次淡入淡出，頁內的移動改為直接跳到定位。</p>
+          </section>
+        </section>
+        <section data-ct-slide id="s-7-3" data-title="附錄 C｜其他選項">
+          <section data-ct-page>
+            <h4 class="kicker">附錄 C｜其他選項（書面）</h4>
+            <h2>縮圖與外觀</h2>
+            <ul>
+              <li><strong>輪廓</strong>：預設是平面的縮圖牆，也可以一開始就用立體的結構檢視。</li>
+              <li><strong>縮圖</strong>：只畫第一頁的版面示意，不複製內容。</li>
+              <li><strong>側邊的位置列</strong>：每一頁一個圓點，點下去就跳到那一頁。</li>
+            </ul>
+          </section>
+          <section data-ct-page>
+            <h2>講稿與預估時間</h2>
+            <ul>
+              <li><strong>講稿面板</strong>：按 N 在舞台旁邊打開，內容是目前這一頁的講稿。</li>
+              <li><strong>講稿檢視</strong>：整份講稿排成一頁，手機上也能讀，並且保持螢幕不熄滅。</li>
+              <li><strong>預估時間</strong>：寫在區塊上，輪廓上顯示為「約幾分」。</li>
+            </ul>
+          </section>
+        </section>
+        <section data-ct-slide id="s-7-4" data-title="附錄 D｜名詞表">
+          <section data-ct-page>
+            <h4 class="kicker">附錄 D｜名詞表（書面）</h4>
+            <h2>名詞表</h2>
+            <ul>
+              <li><strong>區塊</strong>：講述的一個段落，輪廓上的一格。</li>
+              <li><strong>投影片</strong>：區塊裡的一個主題，輪廓上的一張縮圖。</li>
+              <li><strong>頁</strong>：投影片裡往下的一屏。</li>
+              <li><strong>步驟</strong>：一頁裡逐項出現的內容。</li>
+              <li><strong>停靠點</strong>：捲動時畫面會停住的位置。</li>
+              <li><strong>講稿</strong>：附在每一頁上、舞台上不顯示的文字。</li>
+              <li><strong>附錄</strong>：只供書面閱讀、不在主要部分翻到的區塊。</li>
+              <li><strong>輪廓</strong>：把所有區塊與投影片一次攤開的檢視。</li>
+            </ul>
+          </section>
+        </section>
+      </section>
+
+      
+
+
+  </div>
+</main>
+
+<script src="assets/contour-deck.js"></script>
+<script>
+  // What a host does: open the deck when the URL asks for it, close it on exit.
+  (function () {
+    var root = document.querySelector("[data-ct-deck]");
+    var demo = (window.contourDemo = { deck: null, events: [] });
+    ["ct:enter", "ct:leave"].forEach(function (type) {
+      document.addEventListener(type, function (event) {
+        var d = event.detail;
+        demo.events.push(type + " " + d.block + "." + d.slide + "." + d.page);
+      });
+    });
+    function open(options) {
+      if (demo.deck) return;
+      demo.deck = ContourDeck.createDeck(root, options);
+      demo.deck.on("exit", close);
+    }
+    function close() {
+      demo.deck.destroy();
+      demo.deck = null;
+    }
+    demo.open = open;
+    demo.close = close;
+    document.getElementById("start").addEventListener("click", function () { open(); });
+    document.getElementById("notes-link").addEventListener("click", function (event) {
+      event.preventDefault();
+      open({ view: "notes" });
+    });
+    var params = new URLSearchParams(location.search);
+    if (params.has("view")) open(params.get("paging") === "free" ? { paging: "free" } : undefined);
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+import { expect, test as base } from "@playwright/test";
+
+/** Every browser test also fails on an uncaught page error or a console error. */
+export const test = base.extend<{ pageErrors: string[] }>({
+  pageErrors: [
+    async ({ page }, use) => {
+      const errors: string[] = [];
+      page.on("pageerror", error => errors.push(error.message));
+      page.on("console", message => {
+        if (message.type() === "error") errors.push(message.text());
+      });
+      await use(errors);
+      expect(errors).toEqual([]);
+    },
+    { auto: true },
+  ],
+});
+
+export { expect };
