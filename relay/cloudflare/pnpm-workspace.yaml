@@ -1,0 +1,6 @@
+# The relay is its own project with its own lockfile; it is not part of the contour-deck npm package.
+# The binaries of esbuild, workerd, and sharp ship as optional dependencies; their install scripts are not needed.
+allowBuilds:
+  esbuild: false
+  workerd: false
+  sharp: false
