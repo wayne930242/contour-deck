@@ -94,7 +94,8 @@ test("an unpaired guest cannot control the deck", async ({ page, remote }) => {
   await remote.start();
   const room = await remote.room();
   const stranger = await page.context().newPage();
-  await stranger.goto("/demo/media.html");
+  // A page of the same origin that loads nothing else (media.html needs recorded clips that CI does not have).
+  await stranger.goto("/demo/demo.css");
   // Everything a guest could say, without having been allowed: commands, pointer, ink, and frames that pose as the relay's or the host's.
   const heard = await rawGuest(stranger, room, [
     { t: "cmd", c: "next" },
@@ -152,7 +153,8 @@ test("revoke takes control back and the old token is dead", async ({ page, remot
 
   // Replaying the token it was granted, from a new connection, gives nothing.
   const stranger = await page.context().newPage();
-  await stranger.goto("/demo/media.html");
+  // A page of the same origin that loads nothing else (media.html needs recorded clips that CI does not have).
+  await stranger.goto("/demo/demo.css");
   const heard = await rawGuest(stranger, room, [{ t: "resume", token }, { t: "cmd", c: "next" }]);
   expect(heard.map(frame => (JSON.parse(frame) as { t: string }).t)).toEqual(["hello", "pair"]);
   await idle(page);
