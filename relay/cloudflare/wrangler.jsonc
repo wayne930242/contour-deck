@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "contour-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  // Request URLs carry the room id, so Workers Logs stay off; `wrangler tail` still shows live errors.
+  "observability": { "enabled": false },
+  "vars": {
+    // Production origins only. `pnpm dev` replaces this with localhost on any port.
+    "ALLOWED_ORIGINS": "https://www.wayneh.tw,https://wayneh.tw,https://wayne930242.github.io,http://localhost:4321,http://127.0.0.1:4321"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+}
