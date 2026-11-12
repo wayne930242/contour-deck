@@ -22,6 +22,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm demo:decks
+      - run: mkdir -p demo/media && cp docs/media/*.mp4 docs/media/*.png demo/media/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

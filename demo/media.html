@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>contour-deck｜操作影片與截圖</title>
+<!-- Clips and stills of the framework demo, recorded by scripts/media.mjs (pnpm media) into docs/media/. -->
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main class="gallery">
+  <header class="doc-head">
+    <h1>操作影片與截圖</h1>
+    <nav class="doc-decks" aria-label="示範簡報">
+      <a href="./">框架示範</a>
+      <a href="decks/trpg.html">你不必獨自領攀</a>
+      <a href="decks/kicker.html">小標分區塊</a>
+      <a href="media.html" aria-current="page">操作影片</a>
+    </nav>
+  </header>
+
+  <h2>操作影片</h2>
+  <p>每段都是真實的鍵盤與滑鼠操作，畫面上的圓圈是滑鼠，黑底小標是按下的鍵。</p>
+  <div class="clips">
+    <figure class="wide">
+      <video controls muted playsinline loop preload="metadata" src="media/tour.mp4"></video>
+      <figcaption><b>從輪廓進到內容再回來</b>：點一張縮圖，畫面從縮圖放大成舞台；←→ 換投影片，↓ 逐個停靠點往下，長頁在底部多一個停靠點；Esc 回到輪廓，游標圈停在剛看的那一張。</figcaption>
+    </figure>
+    <figure>
+      <video controls muted playsinline loop preload="metadata" src="media/move.mp4"></video>
+      <figcaption><b>跨區塊移動</b>：翻到區塊的盡頭，畫面先拉遠回輪廓，再推進下一個區塊；點頂端位置列的圓點，直接飛到另一個區塊。</figcaption>
+    </figure>
+    <figure>
+      <video controls muted playsinline loop preload="metadata" src="media/structure.mp4"></video>
+      <figcaption><b>3D 結構</b>：按 3，輪廓傾斜、每一頁疊成一層；在 3D 裡一樣可以點進投影片，回來時仍是 3D。</figcaption>
+    </figure>
+    <figure>
+      <video controls muted playsinline loop preload="metadata" src="media/build.mp4"></video>
+      <figcaption><b>步驟</b>：表格的每一列是一步，空白鍵讓它一列一列出現；步驟用完才換頁，Shift + 空白鍵一步一步收回去。</figcaption>
+    </figure>
+    <figure class="tall">
+      <video controls muted playsinline loop preload="metadata" src="media/phone.mp4"></video>
+      <figcaption><b>手機</b>：講稿檢視是整份講稿的一頁長文，可以從這裡進輪廓、點縮圖進舞台，再用手指往上滑，一次一頁。</figcaption>
+    </figure>
+    <figure>
+      <video controls muted playsinline loop preload="metadata" src="media/tour-light.mp4"></video>
+      <figcaption><b>淺色主題</b>：同一段操作；顏色跟著站台的 CSS 變數與系統的深淺色設定走。</figcaption>
+    </figure>
+  </div>
+
+  <h2>截圖</h2>
+  <p>點圖看原尺寸。</p>
+  <div class="stills">
+    <figure><a href="media/overview.png"><img src="media/overview.png" alt="輪廓：七個區塊、二十一張投影片的縮圖牆" loading="lazy"></a><figcaption><b>輪廓</b>：每個區塊一格，每張投影片一張縮圖，上方是整份簡報的位置列。</figcaption></figure>
+    <figure><a href="media/overview-3d.png"><img src="media/overview-3d.png" alt="3D 結構：傾斜的輪廓，每一頁疊成一層" loading="lazy"></a><figcaption><b>3D 結構</b>：同一份輪廓傾斜，多頁的投影片疊成幾層。</figcaption></figure>
+    <figure><a href="media/stage.png"><img src="media/stage.png" alt="舞台：一張投影片" loading="lazy"></a><figcaption><b>舞台</b>：一張投影片佔滿畫面，上方是整份簡報的位置列。</figcaption></figure>
+    <figure><a href="media/notes.png"><img src="media/notes.png" alt="舞台旁的講稿面板" loading="lazy"></a><figcaption><b>講稿面板</b>：按 N，目前這一頁的講稿在舞台旁邊打開。</figcaption></figure>
+    <figure><a href="media/light.png"><img src="media/light.png" alt="淺色主題的舞台" loading="lazy"></a><figcaption><b>淺色主題</b></figcaption></figure>
+    <figure class="tall"><a href="media/phone.png"><img src="media/phone.png" alt="手機上的講稿檢視" loading="lazy"></a><figcaption><b>手機講稿</b>：整份講稿排成一頁，保持螢幕不熄滅。</figcaption></figure>
+  </div>
+</main>
+</body>
+</html>

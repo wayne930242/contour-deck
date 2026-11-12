@@ -58,7 +58,8 @@
     "size": "node scripts/size.mjs",
     "demo": "node scripts/build.mjs && node scripts/serve.mjs",
     "fixtures": "node scripts/build.mjs && node scripts/fixtures.mjs",
-    "demo:decks": "node scripts/build.mjs && node scripts/demo-decks.mjs"
+    "demo:decks": "node scripts/build.mjs && node scripts/demo-decks.mjs",
+    "media": "node scripts/build.mjs && node scripts/media.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",

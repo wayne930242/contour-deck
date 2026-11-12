@@ -60,3 +60,20 @@ body { background: var(--background); color: var(--foreground); font-family: sys
   .flow { grid-auto-flow: row; gap: 1.5em; }
   .step + .step::before { content: "↓"; left: 50%; top: -1.45em; transform: translateX(-50%); }
 }
+
+/* media page (media.html): clips and stills, recorded by scripts/media.mjs */
+.gallery { max-width: 70rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.gallery .doc-head { margin-bottom: 2rem; }
+.gallery h2 { font-size: 1.05rem; margin: 2.5rem 0 .3rem; }
+.gallery p { margin: .2rem 0 .8rem; color: var(--muted-foreground); font-size: .9rem; }
+.gallery video, .gallery img { display: block; width: 100%; height: auto; border: 1px solid var(--border); background: #111; }
+.clips, .stills { display: grid; gap: 1.5rem 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.clips figure, .stills figure { margin: 0; }
+.clips .wide { grid-column: 1 / -1; }
+.clips .tall video { max-width: 22rem; }
+.gallery figcaption { margin-top: .5rem; font-size: .85rem; color: var(--muted-foreground); }
+.gallery figcaption b { color: var(--foreground); }
+.stills .tall img { max-width: 22rem; }
+@media (max-width: 700px) {
+  .clips, .stills { grid-template-columns: 1fr; }
+}
