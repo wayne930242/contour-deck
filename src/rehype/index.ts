@@ -17,7 +17,7 @@
  * Run it after `contour-deck/remark`, which writes the markers this plugin reads.
  */
 import { MARK_BLOCK, MARK_SLIDE, MARK_VERTICAL } from "../shared/markers.js";
-import { structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
+import { checkStructure, structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
 import {
   blockMarkOf,
   hasContent,
@@ -231,8 +231,10 @@ export function rehypeDeck(options: DeckOptions = {}) {
       else flow.push(node);
     }
 
+    const structure = structureOf(options.structure, file, ORIGIN);
+    checkStructure(file, structure, ORIGIN);
     const groups =
-      structureOf(options.structure, file, ORIGIN) === "headings"
+      structure === "headings"
         ? readHeadings(flow, deckTitle, file)
         : groupBlocks(readSlides(flow, file), deckTitle);
     rejectNestedMarkers(groups.flatMap(group => group.slides), file);

@@ -17,7 +17,7 @@
  * and `::block` needs no `title`: the block has its heading.
  */
 import { MARK, MARK_BLOCK, MARK_BUILD, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
-import { NO_VERTICAL, structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
+import { NO_VERTICAL, recordStructure, structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
 
 export type { DeckFile, Structure, StructureOption };
 
@@ -157,6 +157,8 @@ function visit(node: MdNode, file: DeckFile, structure: Structure): void {
 export function remarkDeck(options: RemarkDeckOptions = {}) {
   return (tree: MdNode, file: DeckFile): void => {
     if (options.match && !options.match(file)) return;
-    visit(tree, file, structureOf(options.structure, file, ORIGIN));
+    const structure = structureOf(options.structure, file, ORIGIN);
+    recordStructure(file, structure);
+    visit(tree, file, structure);
   };
 }

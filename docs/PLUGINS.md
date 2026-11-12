@@ -18,7 +18,7 @@ rehypePlugins: [[rehypeDeck, { title: "大綱優先的簡報", match }]],
 `structure` is `"slides"` (the default, described below) or `"headings"` ([Headings mode](#headings-mode)), or a function of the file that returns one of them.
 Give both plugins the same `match` and the same `structure`.
 A file only one of them accepts is left with markers nobody reads, or with directives nobody turned into markers.
-With different structures, `remarkDeck` checks the directives by one set of rules and `rehypeDeck` builds the deck by the other; where the two meet (a `::vertical`, a `::block` without a title) the file fails.
+With different structures the file fails: `remarkDeck` records on `file.data` the structure it read the file by, and `rehypeDeck` compares it with its own.
 
 ## Markdown
 
@@ -110,7 +110,8 @@ Blocks:
   A `---` group without content is skipped.
 - A block is titled by the first `#` or `####` heading that stands before its first `##` or `###`.
   The heading stays in its slide, as a kicker does in the default structure.
-- A block without such a heading is titled by the deck title, else the deck's first `h1`, else its first slide's title.
+- A block without such a heading takes the title of its first slide when the deck has several blocks.
+  When it is the deck's only block, it is titled by the deck title, else the deck's first `h1`, else its first slide's title.
 - `::block{…}` sets `title`, `short`, `minutes`, `kind`, and `id` of the block it stands in.
   Every attribute is optional, and each one given wins over what the heading would give.
   It stands anywhere at the top level of the block, at most once, and does not start a block: only `---` does.
@@ -122,15 +123,17 @@ Slides and pages:
 
 - A top-level `##` starts a slide.
 - Content before the block's first `##` is the block's first slide: a title slide, or a divider such as `# 拆解`.
-  An opening that holds nothing but a `####` kicker, notes, and directives is not a slide of its own: it opens the first `##` slide.
+  An opening that holds nothing but a `####` kicker, notes, `::block`, `::slide`, and HTML comments is not a slide of its own: it opens the first `##` slide.
 - A top-level `###` starts a further page of the current slide.
   The exception is a `###` right under the slide's `##` with no content between them: the two head the first page together.
   So `##`, `###`, text, `###`, text is a slide of two pages, not of three with a first page that holds only the title.
-  Notes and directives are not content for this rule or the one above.
+  Notes, `::block`, `::slide`, and HTML comments are not content for this rule or the one above; other directives, such as `:::build`, are.
 - A `###` before the block's first `##` starts a page of the block's first slide.
 - Only top-level headings count.
   A heading inside a list, a quote, or a container such as `:::grid` is page content, and so are `####` and deeper and a `#` after the block's first `##`.
   Run `rehypeDeck` before any plugin that wraps headings in other elements.
+- Leave a blank line before a `---`.
+  Text right above it (`正文` then `---` on the next line) is a setext `##` heading in Markdown, so it starts a slide instead of a block.
 
 Directives:
 

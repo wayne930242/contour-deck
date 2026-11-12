@@ -1,4 +1,11 @@
+import remarkDirective from "remark-directive";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import { unified } from "unified";
+import { VFile } from "vfile";
 import { describe, expect, it } from "vitest";
+import { remarkDeck } from "../../src/remark/index.js";
+import { rehypeDeck } from "../../src/rehype/index.js";
 import type { DeckOptions } from "../../src/rehype/index.js";
 import { structureOf } from "../../src/shared/structure.js";
 import { counts, fixture, outline, toHast, toHtml } from "./helpers.js";
@@ -66,14 +73,56 @@ describe("structure: headings", () => {
     ]);
   });
 
-  it("titles a block with neither heading by the deck title, without a label or a kind", () => {
-    const blocks = view(`## 甲\n\n---\n\n## 乙\n\n#### 頁內小標`, { title: "附錄的寫法" }).blocks;
+  it("titles a heading-less block of a deck with several blocks by its first slide, without a label or a kind", () => {
+    const blocks = view(`## 甲\n\n---\n\n## 附錄乙\n\n#### 頁內小標`, { title: "附錄的寫法" }).blocks;
     expect(blocks.map(block => [block.title, block.short, block.kind])).toEqual([
-      ["附錄的寫法", undefined, undefined],
-      ["附錄的寫法", undefined, undefined],
+      ["甲", undefined, undefined],
+      ["附錄乙", undefined, undefined],
     ]);
-    // Without a deck title: the deck's first h1, else the block's first slide, as in the default mode.
-    expect(view(`## 甲\n\n---\n\n## 乙`).blocks.map(block => block.title)).toEqual(["甲", "乙"]);
+    // Not the deck's first h1 when that h1 stands in another block.
+    expect(view(`# 封面\n\n---\n\n## 甲\n\n# 大字`).blocks.map(block => block.title)).toEqual(["封面", "甲"]);
+  });
+
+  it("titles the only block of a deck without a heading by the deck title, else its first h1, else its first slide", () => {
+    expect(view(`## 甲\n\n## 乙`, { title: "全場" }).blocks.map(block => block.title)).toEqual(["全場"]);
+    expect(view(`## 甲\n\n# 大字`).blocks.map(block => block.title)).toEqual(["大字"]);
+    expect(view(`## 甲\n\n## 乙`).blocks.map(block => block.title)).toEqual(["甲"]);
+  });
+
+  it("does not count HTML comments as content", () => {
+    const run = (markdown: string, raw = false) => {
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkDirective)
+        .use(remarkDeck, { structure: "headings" })
+        .use(remarkRehype, { allowDangerousHtml: true });
+      // What rehype-raw makes of a comment, without the dependency: a `comment` node.
+      if (!raw) {
+        processor.use(() => (root: object) => {
+          const tree = root as { children: { type: string; value?: string }[] };
+          tree.children = tree.children.flatMap(node =>
+            node.type === "raw" && /^<!--[\s\S]*-->$/.test(node.value ?? "")
+              ? [...(node.value ?? "").matchAll(/<!--([\s\S]*?)-->/g)].map(match => ({ type: "comment", value: match[1] }))
+              : [node]
+          );
+        });
+      }
+      processor.use(rehypeDeck, { structure: "headings" });
+      const file = new VFile({ value: markdown });
+      return outline(processor.runSync(processor.parse(file), file) as never);
+    };
+    for (const raw of [true, false]) {
+      const pages = (markdown: string) =>
+        run(markdown, raw).blocks.flatMap(block => block.slides.map(slide => slide.pages.map(page => page.content)));
+      // No blank first slide.
+      expect(pages(`<!-- note -->\n\n## 甲\n\n正文`)).toEqual([[["h2", "p"]]]);
+      // A kicker after a comment still opens the first ## slide.
+      expect(pages(`<!-- note -->\n\n#### 一、問題\n\n## 甲\n\n正文`)).toEqual([[["h4", "h2", "p"]]]);
+      // A comment between ## and ### keeps the shared first page.
+      expect(pages(`## 甲\n\n<!-- a --><!-- b -->\n\n### 一\n\n正文\n\n### 二`)).toEqual([[["h2", "h3", "p"], ["h3"]]]);
+      // Other raw HTML is content.
+      expect(pages(`<div>x</div>\n\n## 甲`)).toHaveLength(2);
+    }
   });
 
   it("makes the content before the first ## the block's first slide, titled by the slide title rule", () => {
@@ -140,7 +189,7 @@ describe("structure: headings", () => {
     ).toEqual([
       ["一、問題", "一", "5", undefined, undefined],
       ["附錄 B｜格式", "格", undefined, "appendix", "fmt"],
-      ["全場", undefined, "2", "appendix", undefined],
+      ["丙", undefined, "2", "appendix", undefined],
       ["附錄不是附錄", undefined, undefined, "main", undefined],
     ]);
   });
@@ -227,8 +276,10 @@ describe("structure option", () => {
   });
 
   it("fails when the two plugins were given different structures", () => {
-    // rehype alone in headings mode meets the page break remark still wrote.
-    expect(() => toHast(`## 甲\n\n::vertical\n\n正文`, { structure: "headings" }, {}, {})).toThrow(/::vertical .* ### heading/);
+    // Whichever directives the file holds: remarkDeck records its structure for rehypeDeck.
+    expect(() => toHast(`## 甲\n\n::vertical\n\n正文`, { structure: "headings" }, {}, {})).toThrow(/same structure/);
+    expect(() => toHast(`## 甲\n\n## 乙`, { structure: "headings" }, {}, {})).toThrow(/same structure/);
+    expect(() => toHast(`## 甲\n\n## 乙`, {}, {}, { structure: "headings" })).toThrow(/same structure/);
     // remark alone in headings mode lets a title-less ::block through to a rehype that needs the title.
     expect(() => toHast(markdown, {}, {}, { structure: "headings" })).toThrow(/same structure/);
   });

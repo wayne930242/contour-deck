@@ -3,10 +3,11 @@
  *
  * - A top-level `---` starts a block.
  * - A top-level `##` starts a slide. What stands before a block's first `##` is the block's first
- *   slide (a title, a `# 拆解` divider), unless it is nothing but a `####` kicker, notes, and
- *   directives: those open the first `##` slide.
+ *   slide (a title, a `# 拆解` divider), unless it is nothing but a `####` kicker, notes,
+ *   `::block`/`::slide`, and HTML comments: those open the first `##` slide.
  * - A top-level `###` starts a further page of the slide, unless it stands right under the `##`
- *   with no content between them: then both head the first page.
+ *   with no content between them (notes, `::block`/`::slide`, and HTML comments are not content):
+ *   then both head the first page.
  * - A block is titled by the first `#` or `####` before its first `##` or `###`; the heading stays
  *   where it is. `::block{…}` anywhere at the block's top level overrides what it names.
  * - Headings inside other elements, `####` and deeper, and a `#` after the first `##` are content.
@@ -15,7 +16,7 @@ import { MARK_BLOCK, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.
 import { NO_VERTICAL, type DeckFile } from "../shared/structure.js";
 import { blockMarkOf, isRule, leadTitle, ORIGIN, splitAt, type BlockMark, type Group, type SlideDraft } from "./draft.js";
 import { isBlank, isElement, markOf, plainText, type Element, type HastNode } from "./hast.js";
-import { kindOf, shortOf } from "./titles.js";
+import { kindOf, shortOf, slideTitle } from "./titles.js";
 
 interface BlockDraft {
   mark?: BlockMark;
@@ -30,6 +31,10 @@ interface BlockDraft {
  * and whatever opened with it (a `###` joins). Notes and directives never count.
  */
 type Bare = "opening" | "title" | undefined;
+
+/** An HTML comment: a `comment` node (after rehype-raw), or a `raw` node of nothing but comments. */
+const isComment = (node: HastNode): boolean =>
+  node.type === "comment" || (node.type === "raw" && /^\s*(<!--[\s\S]*?-->\s*)+$/.test(node.value ?? ""));
 
 function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
   let slide: SlideDraft = { pages: [[]] };
@@ -48,7 +53,8 @@ function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
 
   for (const node of nodes) {
     if (!isElement(node)) {
-      if (!isBlank(node)) {
+      if (isComment(node)) slide.pages[slide.pages.length - 1].push(node);
+      else if (!isBlank(node)) {
         slide.pages[slide.pages.length - 1].push(node);
         bare = trailing = undefined;
         body = true;
@@ -119,8 +125,9 @@ function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
 
 /**
  * Reads the blocks out of the flow. A block with a title of its own (`::block` title, else its
- * heading) derives its label and the 附錄 kind from it unless `::block` gives them; a block
- * without one takes the deck's title and derives nothing.
+ * heading) derives its label and the 附錄 kind from it unless `::block` gives them. A block
+ * without one derives nothing: in a deck of several blocks it takes its first slide's title, and
+ * the only block takes the deck's title, else the deck's first `h1`, else its first slide's title.
  */
 export function readHeadings(flow: HastNode[], deckTitle: string | undefined, file: DeckFile): Group[] {
   const blocks = splitAt(flow, isRule, () => true)
@@ -132,7 +139,10 @@ export function readHeadings(flow: HastNode[], deckTitle: string | undefined, fi
     const own = mark.title ?? heading;
     const spec = own
       ? { ...mark, title: own, short: mark.short ?? shortOf(own), kind: mark.kind ?? kindOf(own) }
-      : { ...mark, title: leadTitle(deckTitle, drafts, slides[0]) };
+      : {
+          ...mark,
+          title: blocks.length > 1 ? slideTitle(slides[0].pages, "Slides") : leadTitle(deckTitle, drafts, slides[0]),
+        };
     return { spec, slides };
   });
 }

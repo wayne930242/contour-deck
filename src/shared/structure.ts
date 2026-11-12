@@ -31,3 +31,22 @@ export function structureOf(option: StructureOption | undefined, file: DeckFile,
   if (value === "slides" || value === "headings") return value;
   return file.fail(`structure must be "slides" or "headings", got ${JSON.stringify(value)}`, undefined, origin);
 }
+
+/** Where `remarkDeck` leaves the structure it read a file by, for `rehypeDeck` to compare. */
+const RECORD = "contourDeckStructure";
+
+export function recordStructure(file: DeckFile, structure: Structure): void {
+  (file.data as Record<string, unknown>)[RECORD] = structure;
+}
+
+/** Fails when `remarkDeck` read the file by another structure than `rehypeDeck` is about to. */
+export function checkStructure(file: DeckFile, structure: Structure, origin: string): void {
+  const recorded = (file.data as Record<string, unknown>)[RECORD];
+  if (recorded !== undefined && recorded !== structure) {
+    file.fail(
+      `remarkDeck ran with structure "${String(recorded)}" and rehypeDeck with "${structure}": give both the same structure option`,
+      undefined,
+      origin
+    );
+  }
+}
