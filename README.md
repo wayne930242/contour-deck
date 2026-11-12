@@ -60,9 +60,14 @@ import { remarkDeck } from "contour-deck/remark";
 import { rehypeDeck } from "contour-deck/rehype";
 
 const isDeck = file => file.data.astro?.frontmatter?.type === "slide";
-// remarkPlugins: [remarkDirective, [remarkDeck, { match: isDeck }], …]
-// rehypePlugins: […, [rehypeDeck, { match: isDeck }]]
+// Optional. A deck with `slideOptions: { structure: headings }` in its frontmatter is read by its headings:
+// `---` starts a block, `##` a slide, `###` a page. Every other deck keeps the default rules.
+const structure = file => file.data.astro?.frontmatter?.slideOptions?.structure;
+// remarkPlugins: [remarkDirective, [remarkDeck, { match: isDeck, structure }], …]
+// rehypePlugins: […, [rehypeDeck, { match: isDeck, structure }]]
 ```
+
+By default a `---` starts a slide and `::vertical` a page; [docs/PLUGINS.md](docs/PLUGINS.md) has both sets of rules.
 
 ```astro
 ---
@@ -228,7 +233,7 @@ The core removes both parameters in `destroy()` and leaves the others alone.
 src/core/      the core: model, stops, gestures, navigator, outline, rail, notes, transitions, deck
 src/remote/    contour-deck/remote: protocol, transports, pairing, clock, tilt math, QR, and the three views
 src/remark/    Markdown directives (block, vertical, summary, build)
-src/rehype/    builds the deck > block > slide > page HTML
+src/rehype/    builds the deck > block > slide > page HTML; headings.ts is the reader of `structure: "headings"`
 src/astro/     Deck.astro and the host script it runs (also contour-deck/host)
 styles/        index.css is the entry of contour-deck/style.css
 demo/          a plain-HTML deck that follows the contract, and media.html (clips and stills)

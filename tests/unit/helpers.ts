@@ -8,7 +8,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { VFile } from "vfile";
-import { remarkDeck } from "../../src/remark/index.js";
+import { remarkDeck, type RemarkDeckOptions } from "../../src/remark/index.js";
 import { rehypeDeck, type DeckOptions } from "../../src/rehype/index.js";
 
 /** Minimal stand-in for the blog's other directives: unknown containers fall back to a div. */
@@ -22,14 +22,15 @@ function remarkHostDirectives() {
   };
 }
 
-function processor(options: DeckOptions) {
+/** `remark` defaults to the `structure` of the rehype options: the host gives both plugins the same one. */
+function processor(options: DeckOptions, remark: RemarkDeckOptions = { structure: options.structure }) {
   return unified()
     .use(remarkParse)
     .use(remarkCjkFriendly)
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkHostDirectives)
-    .use(remarkDeck)
+    .use(remarkDeck, remark)
     .use(remarkRehype)
     .use(rehypeDeck, options);
 }
@@ -44,8 +45,13 @@ export interface Hast {
 
 const stripFrontmatter = (markdown: string): string => markdown.replace(/^---\n[\s\S]*?\n---\n/, "");
 
-export function toHast(markdown: string, options: DeckOptions = {}, data: Record<string, unknown> = {}): Hast {
-  const run = processor(options);
+export function toHast(
+  markdown: string,
+  options: DeckOptions = {},
+  data: Record<string, unknown> = {},
+  remark?: RemarkDeckOptions
+): Hast {
+  const run = processor(options, remark);
   const file = new VFile({ value: stripFrontmatter(markdown), data });
   return run.runSync(run.parse(file), file) as Hast;
 }

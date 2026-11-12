@@ -11,19 +11,26 @@
  *   starting with 附錄 gets `data-kind="appendix"`. Without any of these the deck is one block.
  * - `<section>` inside page content is left alone: the contract reads data attributes only.
  *
+ * These are the rules of `structure: "slides"`, the default. With `structure: "headings"` the
+ * slides come from headings.ts instead: `---` starts a block, `##` a slide, `###` a page.
+ *
  * Run it after `contour-deck/remark`, which writes the markers this plugin reads.
  */
 import { MARK_BLOCK, MARK_SLIDE, MARK_VERTICAL } from "../shared/markers.js";
+import { structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
 import {
-  element,
-  isBlank,
-  isElement,
-  markOf,
-  plainText,
-  walkElements,
-  type Element,
-  type HastNode,
-} from "./hast.js";
+  blockMarkOf,
+  hasContent,
+  isRule,
+  leadTitle,
+  ORIGIN,
+  splitAt,
+  type BlockSpec,
+  type Group,
+  type SlideDraft,
+} from "./draft.js";
+import { element, isElement, markOf, plainText, walkElements, type Element, type HastNode } from "./hast.js";
+import { readHeadings } from "./headings.js";
 import { buildPage } from "./page.js";
 import { dividerOf, firstHeading, kickerOf, kindOf, shortOf, slideTitle } from "./titles.js";
 
@@ -32,65 +39,29 @@ export interface DeckOptions {
   title?: string;
   /** Whether to build a deck for this file. Default: every file. */
   match?: (file: DeckFile) => boolean;
+  /** `"slides"` (default) or `"headings"`, or a function of the file. Pass the same one to `contour-deck/remark`. */
+  structure?: StructureOption;
 }
 
-export interface DeckFile {
-  data: object;
-  fail(reason: string, place?: unknown, origin?: string): never;
-}
-
-const ORIGIN = "contour-deck:rehype";
-
-interface BlockSpec {
-  title: string;
-  short?: string;
-  minutes?: string;
-  kind?: string;
-  id?: string;
-}
-
-interface SlideDraft {
-  pages: HastNode[][];
-  id?: string;
-  block?: BlockSpec;
-  /** Text of the first `h2` of the slide's first page: the key of the slide/page rule. */
-  h2?: string;
-  /** Old reveal.js indexes of the slide's first page: `?slide=h.v`. */
-  legacy: number;
-  legacyV: number;
-}
+export type { DeckFile, Structure, StructureOption };
 
 function isFootnotes(node: HastNode): boolean {
   return isElement(node) && node.tagName === "section" && node.properties.dataFootnotes !== undefined;
 }
 
-/** Splits at breaks matching `isSplit`, dropping the breaks and the groups `keep` rejects. */
-function splitAt(
-  nodes: HastNode[],
-  isSplit: (node: HastNode) => boolean,
-  keep: (group: HastNode[]) => boolean
-): HastNode[][] {
-  const groups: HastNode[][] = [[]];
-  for (const node of nodes) {
-    if (isSplit(node)) groups.push([]);
-    else groups[groups.length - 1].push(node);
-  }
-  return groups.filter(keep);
-}
-
-const isSlideBreak = (node: HastNode): boolean => isElement(node) && node.tagName === "hr" && markOf(node) === undefined;
 const isPageBreak = (node: HastNode): boolean => markOf(node) === MARK_VERTICAL;
-const hasContent = (group: HastNode[]): boolean => group.some(node => !isBlank(node));
 
-function blockSpecOf(marker: Element): BlockSpec {
-  const { dataTitle, dataShort, dataMinutes, dataKind, id } = marker.properties;
-  return {
-    title: String(dataTitle),
-    short: dataShort === undefined ? undefined : String(dataShort),
-    minutes: dataMinutes === undefined ? undefined : String(dataMinutes),
-    kind: dataKind === undefined ? undefined : String(dataKind),
-    id: typeof id === "string" ? id : undefined,
-  };
+/** A `::block` of this mode always has a title: `contour-deck/remark` lets one through without only in headings mode. */
+function blockSpecOf(marker: Element, file: DeckFile): BlockSpec {
+  const mark = blockMarkOf(marker);
+  if (mark.title === undefined) {
+    file.fail(
+      '::block has no title: remarkDeck ran with structure "headings" and rehypeDeck with "slides"; give both the same structure option',
+      marker,
+      ORIGIN
+    );
+  }
+  return { ...mark, title: mark.title };
 }
 
 /**
@@ -104,7 +75,7 @@ function readSlides(flow: HastNode[], file: DeckFile): SlideDraft[] {
   let pending: BlockSpec | undefined;
   let legacy = -1;
 
-  for (const group of splitAt(flow, isSlideBreak, group => group.length > 0)) {
+  for (const group of splitAt(flow, isRule, group => group.length > 0)) {
     let current: SlideDraft | undefined;
     let vertical = 0;
 
@@ -115,7 +86,7 @@ function readSlides(flow: HastNode[], file: DeckFile): SlideDraft[] {
       if (blocks.length > 1) file.fail("a page holds two ::block directives", blocks[1], ORIGIN);
       if (slides.length > 1) file.fail("a page holds two ::slide directives", slides[1], ORIGIN);
 
-      const spec = blocks[0] && blockSpecOf(blocks[0]);
+      const spec = blocks[0] && blockSpecOf(blocks[0], file);
       const twice = (): never =>
         file.fail(`::block "${spec?.title}" follows ::block "${pending?.title}" with no slide between`, blocks[0], ORIGIN);
       if (!hasContent(rest)) {
@@ -167,11 +138,6 @@ function rejectNestedMarkers(drafts: SlideDraft[], file: DeckFile): void {
   }
 }
 
-interface Group {
-  spec: BlockSpec;
-  slides: SlideDraft[];
-}
-
 /**
  * Groups slides into blocks by the rules in the header. Where a block gets no title of its own
  * (slides before the first marker) it is titled by the deck title, else the deck's first `h1`,
@@ -197,8 +163,7 @@ function groupBlocks(drafts: SlideDraft[], deckTitle: string | undefined): Group
     }
 
     if (spec || !groups.length) {
-      const lead = deckTitle || firstHeading(drafts.flatMap(item => item.pages.flat()), 1) || slideTitle(draft.pages, "Slides");
-      groups.push({ spec: spec ?? { title: lead }, slides: [] });
+      groups.push({ spec: spec ?? { title: leadTitle(deckTitle, drafts, draft) }, slides: [] });
     }
     groups[groups.length - 1].slides.push(draft);
   }
@@ -213,15 +178,15 @@ function ids(nodes: HastNode[]): Set<string> {
   return found;
 }
 
-function assemble(drafts: SlideDraft[], deckTitle: string | undefined, file: DeckFile): Element[] {
-  const taken = ids(drafts.flatMap(draft => draft.pages.flat()));
+function assemble(groups: Group[], file: DeckFile): Element[] {
+  const taken = ids(groups.flatMap(group => group.slides).flatMap(draft => draft.pages.flat()));
   const claim = (id: string, what: string): string => {
     if (taken.has(id)) file.fail(`${what} id "${id}" is already used in the document`, undefined, ORIGIN);
     taken.add(id);
     return id;
   };
 
-  return groupBlocks(drafts, deckTitle).map(({ spec, slides }, blockIndex) => {
+  return groups.map(({ spec, slides }, blockIndex) => {
     const properties: Record<string, unknown> = { dataCtBlock: true, dataTitle: spec.title };
     if (spec.short) properties.dataShort = spec.short;
     if (spec.minutes) properties.dataMinutes = spec.minutes;
@@ -237,8 +202,7 @@ function assemble(drafts: SlideDraft[], deckTitle: string | undefined, file: Dec
           dataCtSlide: true,
           id,
           dataTitle: slideTitle(draft.pages, `Slide ${ordinal.replace("-", ".")}`),
-          dataLegacy: draft.legacy,
-          dataLegacyV: draft.legacyV,
+          ...(draft.legacy === undefined ? {} : { dataLegacy: draft.legacy, dataLegacyV: draft.legacyV }),
         },
         draft.pages.map(buildPage)
       );
@@ -267,9 +231,12 @@ export function rehypeDeck(options: DeckOptions = {}) {
       else flow.push(node);
     }
 
-    const drafts = readSlides(flow, file);
-    rejectNestedMarkers(drafts, file);
-    const blocks = assemble(drafts, deckTitle, file);
+    const groups =
+      structureOf(options.structure, file, ORIGIN) === "headings"
+        ? readHeadings(flow, deckTitle, file)
+        : groupBlocks(readSlides(flow, file), deckTitle);
+    rejectNestedMarkers(groups.flatMap(group => group.slides), file);
+    const blocks = assemble(groups, file);
     const deck = element("div", { dataCtDeck: true, ...(deckTitle ? { dataTitle: deckTitle } : {}) }, blocks);
     tree.children = [...before, deck, ...after];
   };

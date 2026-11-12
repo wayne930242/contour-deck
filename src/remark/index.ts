@@ -12,8 +12,14 @@
  *
  * A directive written in the wrong form (`::summary` for `:::summary`) is an error here,
  * not an empty box, and so is an unknown attribute.
+ *
+ * With `structure: "headings"` the pages come from `###` headings, so `::vertical` is an error,
+ * and `::block` needs no `title`: the block has its heading.
  */
 import { MARK, MARK_BLOCK, MARK_BUILD, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
+import { NO_VERTICAL, structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
+
+export type { DeckFile, Structure, StructureOption };
 
 interface MdNode {
   type: string;
@@ -23,14 +29,11 @@ interface MdNode {
   data?: { hName?: string; hProperties?: Record<string, unknown> };
 }
 
-export interface DeckFile {
-  data: object;
-  fail(reason: string, place?: unknown, origin?: string): never;
-}
-
 export interface RemarkDeckOptions {
   /** Whether this file is a Contour deck. Default: every file. Pass the same test to `contour-deck/rehype`. */
   match?: (file: DeckFile) => boolean;
+  /** `"slides"` (default) or `"headings"`, or a function of the file. Pass the same one to `contour-deck/rehype`. */
+  structure?: StructureOption;
 }
 
 type Form = "container" | "leaf";
@@ -38,7 +41,7 @@ type Form = "container" | "leaf";
 interface Directive {
   form: Form;
   attributes: readonly string[];
-  hast(node: MdNode, attributes: Record<string, string>, file: DeckFile): MdNode["data"];
+  hast(node: MdNode, attributes: Record<string, string>, file: DeckFile, structure: Structure): MdNode["data"];
 }
 
 const ORIGIN = "contour-deck:remark";
@@ -57,7 +60,10 @@ const DIRECTIVES: Record<string, Directive> = {
   vertical: {
     form: "leaf",
     attributes: [],
-    hast: () => ({ hName: "hr", hProperties: { [MARK]: MARK_VERTICAL } }),
+    hast(node, _attributes, file, structure) {
+      if (structure === "headings") file.fail(NO_VERTICAL, node, ORIGIN);
+      return { hName: "hr", hProperties: { [MARK]: MARK_VERTICAL } };
+    },
   },
   slide: {
     form: "leaf",
@@ -70,11 +76,16 @@ const DIRECTIVES: Record<string, Directive> = {
   block: {
     form: "leaf",
     attributes: ["title", "short", "minutes", "kind", "id"],
-    hast(node, attributes, file) {
+    hast(node, attributes, file, structure) {
       const title = attributes.title?.trim();
-      if (!title) file.fail('::block needs a title: ::block{title="三、主要問題"}', node, ORIGIN);
+      if (structure === "slides") {
+        if (!title) file.fail('::block needs a title: ::block{title="三、主要問題"}', node, ORIGIN);
+      } else if (attributes.title !== undefined && !title) {
+        file.fail("::block title is empty: leave it out to title the block by its heading", node, ORIGIN);
+      }
 
-      const properties: Record<string, unknown> = { [MARK]: MARK_BLOCK, dataTitle: title };
+      const properties: Record<string, unknown> = { [MARK]: MARK_BLOCK };
+      if (title) properties.dataTitle = title;
       if (attributes.short !== undefined) {
         const short = attributes.short.trim();
         if (!short || [...short].length > 3) {
@@ -112,7 +123,7 @@ const EXAMPLE: Record<Form, (name: string) => string> = {
   leaf: name => `::${name}`,
 };
 
-function apply(node: MdNode, file: DeckFile): void {
+function apply(node: MdNode, file: DeckFile, structure: Structure): void {
   const directive = node.name ? DIRECTIVES[node.name] : undefined;
   if (!directive || !node.name) return;
 
@@ -134,18 +145,18 @@ function apply(node: MdNode, file: DeckFile): void {
     attributes[key] = value ?? "";
   }
 
-  node.data = { ...node.data, ...directive.hast(node, attributes, file) };
+  node.data = { ...node.data, ...directive.hast(node, attributes, file, structure) };
   if (directive.form === "leaf") node.children = [];
 }
 
-function visit(node: MdNode, file: DeckFile): void {
-  apply(node, file);
-  for (const child of node.children ?? []) visit(child, file);
+function visit(node: MdNode, file: DeckFile, structure: Structure): void {
+  apply(node, file, structure);
+  for (const child of node.children ?? []) visit(child, file, structure);
 }
 
 export function remarkDeck(options: RemarkDeckOptions = {}) {
   return (tree: MdNode, file: DeckFile): void => {
     if (options.match && !options.match(file)) return;
-    visit(tree, file);
+    visit(tree, file, structureOf(options.structure, file, ORIGIN));
   };
 }
