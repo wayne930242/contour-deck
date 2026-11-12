@@ -396,14 +396,42 @@
         demo.events.push(type + " " + d.block + "." + d.slide + "." + d.page);
       });
     });
+    var params = new URLSearchParams(location.search);
+    // ?relay=wss://… points the demo at a relay (docs/PROTOCOL.md); without it the remote stays on this computer.
+    var remoteOptions = { relay: params.get("relay") || undefined };
+    var remoteScript;
+    /** contour-deck/remote, added to the page on first use. */
+    function loadRemote() {
+      remoteScript = remoteScript || new Promise(function (resolve, reject) {
+        var script = document.createElement("script");
+        script.src = document.querySelector('script[src$="contour-deck.js"]').src.replace("contour-deck.js", "contour-deck-remote.js");
+        script.onload = function () { resolve(ContourDeckRemote); };
+        script.onerror = reject;
+        document.head.append(script);
+      });
+      return remoteScript;
+    }
+    function remoteOf(deck) {
+      return loadRemote().then(function (remote) {
+        // The deck may have closed while the script loaded.
+        return demo.deck === deck ? (demo.remote = remote.remoteHost(deck, root, remoteOptions)) : null;
+      });
+    }
     function open(options) {
       if (demo.deck) return;
-      demo.deck = ContourDeck.createDeck(root, options);
+      demo.deck = ContourDeck.createDeck(root, Object.assign({
+        remote: function (deck) { remoteOf(deck).then(function (remote) { if (remote) remote.toggle(); }); }
+      }, options));
       demo.deck.on("exit", close);
+      // A remote session of this tab (the key contour-deck/remote keeps) continues after a reload.
+      try {
+        if (sessionStorage.getItem("contour-deck:host:" + location.pathname)) remoteOf(demo.deck);
+      } catch (error) { /* no storage: nothing to continue */ }
     }
     function close() {
       demo.deck.destroy();
       demo.deck = null;
+      demo.remote = null;
     }
     demo.open = open;
     demo.close = close;
@@ -412,8 +440,13 @@
       event.preventDefault();
       open({ view: "notes" });
     });
-    var params = new URLSearchParams(location.search);
-    if (params.has("view")) open(params.get("paging") === "free" ? { paging: "free" } : undefined);
+    var view = params.get("view");
+    if (view === "remote" || view === "presenter") {
+      // The phone remote and the presenter window: this page as a view of a deck open elsewhere.
+      loadRemote().then(function (remote) {
+        demo.view = (view === "remote" ? remote.remoteView : remote.presenterView)(root, remoteOptions);
+      });
+    } else if (view) open(params.get("paging") === "free" ? { paging: "free" } : undefined);
   })();
 </script>
 </body>

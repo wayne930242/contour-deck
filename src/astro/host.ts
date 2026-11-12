@@ -10,10 +10,27 @@
  * | `data-ct-paging`, `data-ct-overview`     | the `paging` and `overview` options of the core              |
  * | `data-ct-legacy`                         | accept `?view=slides&slide=h.v`                              |
  * | `[data-ct-start]`, `[data-ct-start="notes"]` | a control that opens the deck or its notes view: inside a host for that deck, elsewhere for the first deck of the page |
+ * | `data-ct-remote`, `data-ct-relay="wss://…"` | the remote button and the `R` key; with a relay URL a phone can pair (docs/PROTOCOL.md) |
+ *
+ * The remote (`contour-deck/remote`) is loaded on first use: on `R`, on `?view=remote` (the phone),
+ * and on `?view=presenter` (the presenter window).
  */
 import { createDeck } from "../core/index.js";
 import type { Deck, DeckOptions } from "../core/index.js";
+import type { RemoteOptions, RemoteView } from "../remote/index.js";
+import { hostKey } from "../remote/store.js";
 import { legacyAt, parseLegacy, readLegacy } from "./legacy.js";
+
+let remoteDefaults: RemoteOptions = {};
+
+/**
+ * Options of the remote for every deck of the page, such as a QR encoder the site already ships:
+ * `configureRemote({ qr: text => QRCode.toString(text, { type: "svg" }) })`.
+ * A `data-ct-relay` on a wrapper wins over `relay` given here.
+ */
+export function configureRemote(options: RemoteOptions): void {
+  remoteDefaults = { ...remoteDefaults, ...options };
+}
 
 export interface Host {
   /** The open deck, or `null` while the page shows the document. */
@@ -25,6 +42,14 @@ export interface Host {
 }
 
 const mounted = new WeakMap<HTMLElement, Host>();
+
+function stored(key: string): boolean {
+  try {
+    return sessionStorage.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+}
 
 function optionsOf(host: HTMLElement): DeckOptions {
   const { ctPaging, ctOverview } = host.dataset;
@@ -59,10 +84,22 @@ export function mount(host: HTMLElement): Host | null {
   const docClasses = (host.dataset.ctDocClass ?? "").split(/\s+/).filter(Boolean);
   const abort = new AbortController();
   let deck: Deck | null = null;
+  let view: RemoteView | null = null;
   let opener: HTMLElement | null = null;
 
+  const relayUrl = host.dataset.ctRelay;
+  const hasRemote = "ctRemote" in host.dataset || !!relayUrl;
+  const remoteOptions = (): RemoteOptions => ({ ...remoteDefaults, ...(relayUrl ? { relay: relayUrl } : {}) });
+  /** Starts the remote session of the open deck, or returns the one it has; `null` when the deck closed while the module loaded. */
+  const remoteOf = async (open: Deck) => {
+    const { remoteHost } = await import("../remote/session.js");
+    return deck === open ? remoteHost(open, root!, remoteOptions()) : null;
+  };
+
   function close() {
-    if (!deck) return;
+    view?.destroy();
+    view = null;
+    if (!deck) return void host.classList.add(...docClasses);
     deck.destroy();
     deck = null;
     host.classList.add(...docClasses);
@@ -75,12 +112,29 @@ export function mount(host: HTMLElement): Host | null {
     // Document-view classes (a prose class, say) would restyle the shell and the stage, so they wait outside.
     host.classList.remove(...docClasses);
     try {
-      deck = createDeck(root!, { ...optionsOf(host), ...options });
+      deck = createDeck(root!, {
+        ...optionsOf(host),
+        ...(hasRemote ? { remote: (open: Deck) => void remoteOf(open).then(remote => remote?.toggle()) } : {}),
+        ...options,
+      });
     } catch (error) {
       host.classList.add(...docClasses);
       throw error;
     }
     deck.on("exit", close);
+    // A remote session of this tab (a paired phone, a running clock) continues after a reload.
+    if (hasRemote && stored(hostKey())) void remoteOf(deck);
+  }
+
+  /** The phone remote or the presenter window: this page as a view of a deck open elsewhere. */
+  async function openView(kind: "remote" | "presenter") {
+    host.classList.remove(...docClasses);
+    const made =
+      kind === "remote"
+        ? (await import("../remote/phone.js")).remoteView(root!, remoteOptions())
+        : (await import("../remote/presenter.js")).presenterView(root!, remoteOptions());
+    if (abort.signal.aborted) made.destroy();
+    else view = made;
   }
 
   // In the capture phase: a client-side router that listens on the document would otherwise
@@ -102,8 +156,10 @@ export function mount(host: HTMLElement): Host | null {
   );
 
   if ("ctLegacy" in host.dataset) adoptLegacyUrl(root);
-  const view = new URLSearchParams(location.search).get("view");
-  if (view === "deck" || view === "notes") open();
+  const asked = new URLSearchParams(location.search).get("view");
+  if (asked === "deck" || asked === "notes") open();
+  // The remote views follow the first deck of the page.
+  else if ((asked === "remote" || asked === "presenter") && document.querySelector("[data-ct-host]") === host) void openView(asked);
 
   const api: Host = {
     get deck() {

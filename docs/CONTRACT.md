@@ -122,6 +122,8 @@ The core removes all of them in `destroy()`.
 
 Every other `data-ct-*` name is reserved for later versions, except the [host attributes](#host-attributes).
 
+`contour-deck/remote`, when it loads, adds one `<style data-ct-remote>` at the start of `<head>` and leaves it there; its elements (`.ct-rp`, `.ct-laser`, `.ct-ink`, and the `.ct-app` of the phone and presenter views) go with the session or the view that made them.
+
 The core moves the deck element into its shell (`.ct-app .ct-stage`) while the deck is open and puts it back in `destroy()`; it does not clone it.
 The shell is inserted where the deck element was, so the deck keeps its ancestors and the styles it inherits from them.
 
@@ -147,6 +149,8 @@ The core does not read them, and a host that calls `createDeck` itself needs non
 | `data-ct-overview` | the wrapper | `flat` or `3d`: the `overview` option of the core. |
 | `data-ct-legacy` | the wrapper | Accept old reveal.js links: `?view=slides&slide=h.v` is rewritten to `?view=deck&at=…` through `data-legacy` and `data-legacy-v`. |
 | `data-ct-start` | any control in the page | A click opens the deck; with the value `notes`, its notes view. Inside a wrapper it opens that deck, elsewhere the first deck of the page. |
+| `data-ct-remote` | the wrapper | The deck has the remote button and the `R` key (`contour-deck/remote`, loaded on first use). |
+| `data-ct-relay` | the wrapper | Base URL of the relay (`wss://…`) for the phone remote; implies `data-ct-remote`. See [PROTOCOL.md](PROTOCOL.md). |
 
 ## Deep links
 
@@ -158,6 +162,16 @@ The core owns two query parameters while a deck is open, and removes both in `de
 | `view` | `notes` | The deck is open in the notes view (speaker notes as a scrolling script). |
 | `at` | `b.s` or `b.s.p` | 1-based ordinals: block in the deck, slide in the block, page in the slide. `4.4.2` is the second page of the fourth slide of the fourth block. |
 | `at` | an element id | The slide, page, or block with that id, or the one that contains the element with that id. |
+
+`contour-deck/remote` owns two more values of `view`, on pages that are views of a deck open elsewhere; the host loads the module when it sees them.
+
+| Parameter | Value | Meaning |
+| --- | --- | --- |
+| `view` | `remote` | The phone remote of the first deck of the page. |
+| `view` | `presenter` | The presenter window, in the same browser as the deck. |
+| `room` | 26 characters of Crockford base32 | The room both sides meet in: the relay room of the phone, the `BroadcastChannel` of the presenter window. |
+
+The links to these views keep every other query parameter of the deck's page and drop `at` and the fragment.
 
 Without `at` the deck opens on the outline.
 The position is in the query string, not the fragment, because a restricted page on the blog drops the fragment on redirect.

@@ -30,4 +30,15 @@ await build({
   outfile: "demo/assets/contour-deck.js",
   logLevel: "warning",
 });
+// The remote is a second script the demo adds on first use (R, ?view=remote, ?view=presenter).
+await build({
+  entryPoints: ["src/remote/index.ts"],
+  bundle: true,
+  minify: true,
+  format: "iife",
+  globalName: "ContourDeckRemote",
+  target: "es2022",
+  outfile: "demo/assets/contour-deck-remote.js",
+  logLevel: "warning",
+});
 await build({ entryPoints: [css], bundle: true, minify: true, outfile: "demo/assets/contour-deck.css", logLevel: "warning" });

@@ -11,9 +11,9 @@
 
 Outline-first slide decks on real DOM.
 A deck is blocks, slides, and pages: it opens on an outline of every block, a block opens into a left-right track of slides, and each slide scrolls down one page at a time.
-The core is plain TypeScript with no runtime dependency (7 KB of JavaScript and 3 KB of CSS, gzipped).
+The core is plain TypeScript with no runtime dependency (7 KB of JavaScript and 3 KB of CSS, gzipped); the phone remote is a separate module that loads on first use.
 
-Status: 0.1.0 on npm (M1). Phone remote, laser pointer, drawing and tilt control come in M2. Live demo: https://wayne930242.github.io/contour-deck/
+Status: 0.1.0 on npm (M1). The M2 client is on `main`, not yet released: phone remote, laser pointer, drawing, tilt pointing, and a presenter window ([Remote](#remote)); the relay it talks to is a separate small service ([docs/PROTOCOL.md](docs/PROTOCOL.md)). Live demo: https://wayne930242.github.io/contour-deck/
 The design is in [docs/DESIGN.md](docs/DESIGN.md) (Traditional Chinese); the HTML the core reads is in [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ## 看看它怎麼動
@@ -101,6 +101,7 @@ A page that is not Astro gets the same behaviour from `mountAll()` in `contour-d
 | `at` | from the URL | Entry position, such as `"4.4.2"` or a slide id. |
 | `url` | `true` | Read and write `?view=` and `?at=`. |
 | `labels` | Traditional Chinese | Interface text; pass the entries to replace. |
+| `remote` | none | A function the remote button and the `R` key call with the deck; it usually loads `contour-deck/remote`. Without it the deck has neither. See [Remote](#remote). |
 
 ### API
 
@@ -110,15 +111,82 @@ deck.prev();
 deck.open("4.2");       // put a block on the stage
 deck.go("4.4.2");       // or deck.go("slide-id")
 deck.overview();        // back to the outline
+deck.slideBy(1);        // the next slide, as the right arrow key; -1 for the one before
+deck.pageBy(1);         // one stop down inside the slide, as the down arrow key
 deck.state;             // { mode, block, slide, page, step }; ordinals are 1-based
 deck.on("change", ({ mode, at, step }) => {});
 deck.on("exit", () => deck.destroy()); // Esc on the outline, or the ✕ button of the bar
+deck.on("destroy", () => {});          // once, at the start of destroy()
 deck.destroy();
 ```
 
 On opening, the focus moves into the shell: to the stage, to the current thumbnail of the outline, or to the notes script.
 
 Each page receives `ct:enter` when it becomes the current page and `ct:leave` when it stops; both bubble.
+
+### Remote
+
+A phone controls the deck, points at it, and draws on it; a second window on the same computer shows the presenter's view.
+The code is `contour-deck/remote`, loaded on first use, so a reader who never presses `R` downloads none of it.
+
+```ts
+import { createDeck } from "contour-deck";
+
+const options = { relay: "wss://relay.example" }; // see "The relay" below
+const load = () => import("contour-deck/remote");
+const view = new URLSearchParams(location.search).get("view");
+
+if (view === "remote") load().then(remote => remote.remoteView(root, options)); // the phone
+else if (view === "presenter") load().then(remote => remote.presenterView(root, options)); // the presenter window
+else if (view) {
+  const deck = createDeck(root, { remote: deck => load().then(remote => remote.remoteHost(deck, root, options).toggle()) });
+  deck.on("exit", () => deck.destroy());
+}
+```
+
+With Astro, `<Deck relay="wss://relay.example">` does all of this (`<Deck remote>` without a relay); so does `data-ct-relay` or `data-ct-remote` on a `[data-ct-host]` wrapper.
+
+How to connect:
+
+1. On the deck, press `R` (or the 遙控 button). The panel shows two QR codes.
+2. Scan 手機遙控 with the phone. It opens the same page as `?view=remote&room=…` and shows a 4-digit code.
+3. The deck shows the same code under 有手機要求控制. Compare the two screens and press 允許.
+4. The phone now has: position and clocks (whole talk and current block, from `data-minutes`), the notes, what the next step shows, 下一步 / 上一步 / 上一張 / 下一張 / 輪廓, and three pointing tools: 紅點 (drag on a small copy of the page), 畫筆 (draw on it; a page change clears the ink), and 傾斜 (hold a button and aim the phone like a laser pointer).
+5. 講稿, the other QR, is `?view=notes`: the script on the phone, turned by hand, with no connection at all.
+
+開啟講者視窗 in the panel opens `?view=presenter` in a second window of the same browser: the current page, the next step, the notes, and the clocks. It follows over `BroadcastChannel`, needs no relay, and takes the deck's keys; the mouse over its current page is the laser pointer.
+
+Tilt pointing reads the phone's orientation sensor (iOS asks for permission on the tap that enables it).
+校正 guides through five aims: the screen's centre, then its four corners, each marked by the dot on the deck. From these the phone knows where the screen is from where you stand, and keeps it for the session.
+Without calibration, the direction of the first press is the centre of a screen ±20° wide and ±12° high.
+When the pointer drifts, aim at the centre and press 重新置中; aiming past an edge also drags the calibration along, as a mouse at the edge of a screen.
+
+Security, in two lines: the relay only forwards small messages (position, commands, pointer coordinates) between the deck and at most four phones in a room named by 128 random bits; notes and slide content never pass through it, because the phone loads the page itself.
+Control belongs to the one phone the presenter allowed on the deck after comparing the code; everything any other guest sends is ignored, so a QR photographed from the projector yields only a request to deny.
+
+| Option of `remoteHost`, `remoteView`, `presenterView` | Default | Meaning |
+| --- | --- | --- |
+| `relay` | none | Base URL of the relay, `wss://…` or `https://…`. Without it the remote stays on this computer: presenter window and notes link only. |
+| `qr` | built-in | `(text) => svgString`, for a site that already ships a QR library: `text => QRCode.toString(text, { type: "svg" })`. The built-in encoder takes links up to 287 bytes; a longer link shows as text. |
+| `skip` | `["appendix"]` | Block kinds whose minutes are not planned time; keep it equal to `linear.skip`. |
+| `labels` | Traditional Chinese | Interface text of the panel, the phone, and the presenter window. |
+| `nonce` | none | Nonce for the `<style>` the module injects, for a page with a `style-src` policy. |
+| `room` (views only) | `?room=` | The room to join. |
+
+`remoteHost(deck, root, options)` returns the session of that deck, creating it once: `toggle()` shows or hides the panel, `end()` takes control back and closes the room, `room` is its name.
+The room, the paired phone's token, and the clock live in `sessionStorage`, so a reload of the deck or of the phone continues the same session; the Astro host and the demo restart it by themselves after a reload.
+With the Astro component, pass a QR encoder or labels through `configureRemote({ qr })` from `contour-deck/host`.
+The remote follows the first deck of a page.
+
+The clock starts with the first move on the stage (not when a slide is opened from the outline) and is reset from the panel.
+The laser dot eases towards its target and fades when released; with `prefers-reduced-motion` it jumps and does not fade.
+
+#### The relay
+
+The relay is a WebSocket forwarder, one room per talk, specified in [docs/PROTOCOL.md](docs/PROTOCOL.md): rooms, the pairing messages, close codes, and limits (2 KB frames, 60 messages a second, 4 guests).
+`relay(url, { room, role })` and `broadcast(room)` are the two `Transport`s (`send`, `subscribe`, `watch`, `reconnect`, `close`, `status`); the relay one reconnects with backoff.
+The demo takes a relay from the query string: `https://wayne930242.github.io/contour-deck/?relay=wss://relay.example&view=deck`.
+The phone must be able to open the page's URL, so a deck on `localhost` needs a tunnel or the LAN address for the phone part.
 
 ### Keys
 
@@ -130,6 +198,7 @@ Each page receives `ct:enter` when it becomes the current page and `ct:leave` wh
 | `↑` `↓` | previous, next stop | move between thumbnails |
 | `Home`, `End` | first, last slide of the block | |
 | `N` | notes panel | |
+| `R` | remote panel (with the `remote` option) | remote panel |
 | `Esc`, `O` | outline | `Esc` leaves the deck (`exit`) |
 | `3` | | 3D structure |
 
@@ -155,6 +224,7 @@ The core removes both parameters in `destroy()` and leaves the others alone.
 
 ```text
 src/core/      the core: model, stops, gestures, navigator, outline, rail, notes, transitions, deck
+src/remote/    contour-deck/remote: protocol, transports, pairing, clock, tilt math, QR, and the three views
 src/remark/    Markdown directives (block, vertical, summary, build)
 src/rehype/    builds the deck > block > slide > page HTML
 src/astro/     Deck.astro and the host script it runs (also contour-deck/host)
@@ -162,7 +232,7 @@ styles/        index.css is the entry of contour-deck/style.css
 demo/          a plain-HTML deck that follows the contract, and media.html (clips and stills)
 docs/media/    GIF, mp4, and PNG made by scripts/media.mjs (not in the npm package)
 tests/unit/    Vitest, tests/unit/**/*.test.ts
-tests/browser/ Playwright, tests/browser/**/*.spec.ts, run against demo/
+tests/browser/ Playwright, tests/browser/**/*.spec.ts, run against demo/; relay-stub.ts is the relay of docs/PROTOCOL.md in the test process
 ```
 
 Every module under `src/` is compiled to the same path under `dist/`, so a new subpath export only needs an entry in `package.json`.
@@ -179,7 +249,7 @@ Every module under `src/` is compiled to the same path under `dist/`, so a new s
 | `pnpm test` | Unit tests. |
 | `pnpm test:browser` | Build, then run the browser tests against the demo in Chromium. |
 | `CT_BROWSERS=all pnpm test:browser` | The same in Chromium, Firefox, and WebKit (`pnpm exec playwright install firefox webkit` once). |
-| `pnpm size` | Minified gzip size of the core and the CSS against the budgets (12 KB, 6 KB). |
+| `pnpm size` | Minified gzip size of the core and the CSS against the budgets (12 KB, 6 KB), and of the parts of the remote. |
 | `pnpm demo` | Build and serve the demo on `http://127.0.0.1:41731/demo/`. |
 | `pnpm media` | Record the clips and stills in `docs/media/` (needs `ffmpeg` and Chromium); the Pages workflow publishes the mp4 and png files next to the demo. |
 

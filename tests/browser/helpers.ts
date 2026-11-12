@@ -1,9 +1,10 @@
 import { expect, type Page } from "@playwright/test";
 import type { Deck } from "../../src/core/index.js";
+import type { RemoteHost } from "../../src/remote/index.js";
 
 declare global {
   interface Window {
-    contourDemo: { deck: Deck | null; events: string[]; open(options?: object): void; close(): void };
+    contourDemo: { deck: Deck | null; remote: RemoteHost | null; events: string[]; open(options?: object): void; close(): void };
   }
 }
 

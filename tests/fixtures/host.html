@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contour-deck/host fixture</title>
+<!--
+  A page as a site writes it: the built ES modules (dist/), a [data-ct-host] wrapper, and mountAll().
+  The browser tests use it for what the demo's own script does not run: contour-deck/host and its
+  lazy imports of contour-deck/remote. Query: relay=<url> sets data-ct-relay, remote=1 sets data-ct-remote,
+  qr=custom passes a QR encoder through configureRemote.
+-->
+<link rel="stylesheet" href="/dist/style.css">
+<style>body { margin: 0; font-family: system-ui, sans-serif; } .prose { max-width: 40rem; margin: 0 auto; }</style>
+</head>
+<body>
+<button data-ct-start id="start">START</button>
+<div data-ct-host class="prose" data-ct-doc-class="prose">
+  <div data-ct-deck data-title="主機測試">
+    <section data-ct-block data-title="一、開始" data-short="一" data-minutes="2">
+      <section data-ct-slide id="s-1-1" data-title="第一張">
+        <section data-ct-page>
+          <h2>第一張</h2>
+          <ul><li data-ct-step>甲</li><li data-ct-step>乙</li></ul>
+          <aside data-ct-notes><p>第一張的講稿。</p></aside>
+        </section>
+      </section>
+      <section data-ct-slide id="s-1-2" data-title="第二張">
+        <section data-ct-page><h2>第二張</h2><aside data-ct-notes><p>第二張的講稿。</p></aside></section>
+      </section>
+    </section>
+    <section data-ct-block data-title="二、結束" data-short="二" data-minutes="1">
+      <section data-ct-slide id="s-2-1" data-title="最後一張">
+        <section data-ct-page><h2>最後一張</h2></section>
+      </section>
+    </section>
+  </div>
+</div>
+<script type="module">
+  import { configureRemote, mountAll } from "/dist/astro/host.js";
+
+  const params = new URLSearchParams(location.search);
+  const wrapper = document.querySelector("[data-ct-host]");
+  if (params.get("relay")) wrapper.dataset.ctRelay = params.get("relay");
+  if (params.get("remote")) wrapper.dataset.ctRemote = "";
+  if (params.get("qr") === "custom") {
+    configureRemote({ qr: text => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" data-custom="${encodeURIComponent(text)}"></svg>` });
+  }
+  window.ctHosts = mountAll();
+</script>
+</body>
+</html>

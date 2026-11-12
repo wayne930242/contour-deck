@@ -34,6 +34,10 @@
       "types": "./dist/rehype/index.d.ts",
       "default": "./dist/rehype/index.js"
     },
+    "./remote": {
+      "types": "./dist/remote/index.d.ts",
+      "default": "./dist/remote/index.js"
+    },
     "./astro": "./dist/astro/Deck.astro",
     "./host": {
       "types": "./dist/astro/host.d.ts",
@@ -45,6 +49,7 @@
     "LICENSE",
     "dist",
     "docs/CONTRACT.md",
+    "docs/PROTOCOL.md",
     "styles"
   ],
   "engines": {
@@ -65,6 +70,7 @@
     "@playwright/test": "1.65.0",
     "@types/node": "^26.6.6",
     "esbuild": "0.28.2",
+    "jsqr": "1.4.0",
     "rehype-stringify": "^10.0.1",
     "remark-cjk-friendly": "^2.3.4",
     "remark-directive": "^4.0.0",

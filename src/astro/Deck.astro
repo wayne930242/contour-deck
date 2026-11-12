@@ -8,6 +8,7 @@
  *   <a href="?view=notes" data-ct-start="notes">Notes</a>
  *
  * `?view=deck` and `?view=notes` open the deck on load; so does any `[data-ct-start]` control.
+ * With `remote` or `relay`, the deck has a remote (R): `?view=remote` is the phone, `?view=presenter` the presenter window.
  *
  * The build copies this file to dist/astro/, and the import paths are the ones that hold there:
  * ../style.css is dist/style.css, ./host.js the compiled src/astro/host.ts.
@@ -28,9 +29,13 @@ interface Props {
   overview?: "flat" | "3d";
   /** Accept old reveal.js links, `?view=slides&slide=h.v`, through `data-legacy`. */
   legacy?: boolean;
+  /** The remote button and the `R` key: presenter window and notes link. Implied by `relay`. */
+  remote?: boolean;
+  /** Base URL of the relay (`wss://…`), so a phone can pair and control the deck. See docs/PROTOCOL.md. */
+  relay?: string;
 }
 
-const { class: className, docClass, paging, overview, legacy = false } = Astro.props;
+const { class: className, docClass, paging, overview, legacy = false, remote = false, relay } = Astro.props;
 ---
 
 <div
@@ -40,6 +45,8 @@ const { class: className, docClass, paging, overview, legacy = false } = Astro.p
   data-ct-paging={paging}
   data-ct-overview={overview}
   data-ct-legacy={legacy ? "" : undefined}
+  data-ct-remote={remote ? "" : undefined}
+  data-ct-relay={relay}
 >
   <slot />
 </div>
