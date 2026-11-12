@@ -20,7 +20,10 @@ body { background: var(--background); color: var(--foreground); font-family: sys
 /* document view: the deck as an article */
 .doc { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 .doc-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.doc-head { flex-wrap: wrap; }
 .doc-head h1 { font-size: 1.1rem; margin: 0; flex: 1; }
+.doc-head > .doc-decks { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: .5rem; }
+.doc-head .doc-decks a { background: transparent; color: var(--foreground); }
 .doc-head button, .doc-head a { font: 650 .72rem/1 var(--mono); letter-spacing: .08em; padding: .6rem .8rem; border: 1px solid var(--foreground); background: var(--foreground); color: var(--background); cursor: pointer; text-decoration: none; }
 .doc-head a { background: var(--background); color: var(--foreground); border-color: var(--border); }
 /* Scoped with a child combinator: an open deck moves into the stage, and these rules stop matching it. */

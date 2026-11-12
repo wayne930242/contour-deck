@@ -23,7 +23,9 @@ for (const [name, title] of decks) {
     .replace(/<h1>[^<]*<\/h1>/, `<h1>${title}</h1>`)
     .replaceAll('href="assets/', 'href="../assets/')
     .replaceAll('src="assets/', 'src="../assets/')
-    .replace('href="demo.css"', 'href="../demo.css"');
+    .replace('href="demo.css"', 'href="../demo.css"')
+    .replace('href="./"', 'href="../"')
+    .replaceAll('href="decks/', 'href="');
   writeFileSync(`demo/decks/${name}.html`, page);
   console.log(`demo/decks/${name}.html`);
 }
