@@ -13,7 +13,7 @@ Outline-first slide decks on real DOM.
 A deck is blocks, slides, and pages: it opens on an outline of every block, a block opens into a left-right track of slides, and each slide scrolls down one page at a time.
 The core is plain TypeScript with no runtime dependency (7 KB of JavaScript and 3 KB of CSS, gzipped).
 
-Status: M1 in progress, local only, not published, no licence yet.
+Status: 0.1.0 on npm (M1). Phone remote, laser pointer, drawing and tilt control come in M2. Live demo: https://wayne930242.github.io/contour-deck/
 The design is in [docs/DESIGN.md](docs/DESIGN.md) (Traditional Chinese); the HTML the core reads is in [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ## 看看它怎麼動
