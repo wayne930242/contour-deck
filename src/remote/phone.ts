@@ -175,7 +175,8 @@ export function remoteView(root: HTMLElement, options: RemoteViewOptions = {}): 
     const { phase, closeCode } = guest;
     cardCode.hidden = phase !== "pairing";
     cardCode.textContent = guest.code;
-    retry.hidden = phase !== "denied" && phase !== "revoked";
+    // A full room is not retried by itself: each try counts against the relay's limit for this network.
+    retry.hidden = phase !== "denied" && phase !== "revoked" && !(phase === "offline" && closeCode === 4029);
     cardBadge.textContent = phase === "pairing" ? labels.code : phase === "offline" ? labels.offline : labels.title;
     cardText.textContent =
       phase === "pairing"

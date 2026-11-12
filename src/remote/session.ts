@@ -231,6 +231,7 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
     allow: id => pairing.allow(id),
     deny: id => pairing.deny(id),
     revoke: () => pairing.revoke(),
+    retake: () => wan?.reconnect(),
     presenter: () => void window.open(pageLink("presenter", room), "contour-deck-presenter", "popup,width=1180,height=760"),
     resetTimer() {
       clock.reset();
@@ -253,14 +254,15 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       paired: pairing.controller ? "online" : pairing.token ? "offline" : "no",
       elapsed: clock.read(Date.now()).elapsed,
     });
-    // With the panel closed, a waiting phone shows as a count on the bar button; nothing opens by itself.
-    if (requests.length) {
-      barButton?.setAttribute("data-ct-count", String(requests.length));
-      barButton?.setAttribute("aria-label", labels.waiting(requests.length));
-    } else {
-      barButton?.removeAttribute("data-ct-count");
-      barButton?.removeAttribute("aria-label");
-    }
+    // With the panel closed, a waiting phone shows as a count on the bar button, and a seat lost to another tab
+    // as a mark on it; nothing opens by itself.
+    const taken = wan?.status === "closed" && wan.code === 4009;
+    barButton?.toggleAttribute("data-ct-taken", taken);
+    if (requests.length) barButton?.setAttribute("data-ct-count", String(requests.length));
+    else barButton?.removeAttribute("data-ct-count");
+    const name = taken ? labels.roomTakenBar : requests.length ? labels.waiting(requests.length) : null;
+    if (name) barButton?.setAttribute("aria-label", name);
+    else barButton?.removeAttribute("aria-label");
     barButton?.setAttribute("aria-pressed", String(panel.open));
   }
 
@@ -316,7 +318,7 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       wan?.close();
       overlay.destroy();
       panel.destroy();
-      for (const name of ["data-ct-count", "aria-label", "aria-pressed"]) barButton?.removeAttribute(name);
+      for (const name of ["data-ct-count", "data-ct-taken", "aria-label", "aria-pressed"]) barButton?.removeAttribute(name);
       hosts.delete(deck);
     },
   };

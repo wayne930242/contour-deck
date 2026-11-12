@@ -196,6 +196,58 @@ test("another tab of the same session takes the host seat; the first one stops a
   await phone.getByRole("button", { name: "下一步" }).click();
   await expectAt(second, "stage 2.2.1 +1");
   await expectAt(page, "stage 2.2.1 +0");
+
+  // The bar button says so with the panel closed, and the panel offers to take the room back.
+  const barButton = page.locator('[data-ct-act="remote"]');
+  await expect(barButton).toHaveAttribute("data-ct-taken", "");
+  await expect(barButton).toHaveAccessibleName("遙控：房間已被另一個視窗使用");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".ct-rp")).toBeHidden();
+  await barButton.click();
+  const grants = () => remote.relay.forwarded.filter(frame => frame.message.t === "grant").length;
+  const granted = grants();
+  await page.getByRole("button", { name: "改用這個視窗" }).click();
+  await expect(page.locator(".ct-rp .ct-badge").first()).toHaveText("中繼已連線");
+  await expect(barButton).not.toHaveAttribute("data-ct-taken");
+  await expect(barButton).toHaveAccessibleName("遙控");
+  await expect(page.getByRole("button", { name: "改用這個視窗" })).toBeHidden();
+  expect(remote.relay.rooms.get(room)!.host).not.toBe(host);
+  await expect(second.locator('[data-ct-act="remote"]')).toHaveAttribute("data-ct-taken", "");
+  // The phone resumes with this tab again.
+  await expect.poll(grants, { timeout: 20_000 }).toBeGreaterThan(granted);
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "granted");
+  await phone.getByRole("button", { name: "下一步" }).click();
+  await expectAt(page, "stage 2.2.1 +1");
+  await expectAt(second, "stage 2.2.1 +1");
+});
+
+test("a phone that finds the room full does not retry by itself, and gets in with its retry button", async ({ page, remote }) => {
+  const link = await remote.start();
+  const room = await remote.room();
+  const crowd = await page.context().newPage();
+  await crowd.goto("/demo/demo.css");
+  const last = await page.context().newPage();
+  await last.goto("/demo/demo.css");
+  for (let i = 0; i < 3; i++) void rawSocket(crowd, `${room}?role=guest`, 60_000).catch(() => {});
+  void rawSocket(last, `${room}?role=guest`, 60_000).catch(() => {});
+  await expect.poll(() => remote.relay.rooms.get(room)!.guests.size).toBe(4);
+
+  const phone = await remote.phone(link);
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "offline");
+  await expect(phone.locator(".ct-rmt-card")).toContainText("已有太多裝置");
+  const guestOpens = () => remote.relay.opens.filter(open => open.room === room && open.role === "guest").length;
+  const tried = guestOpens();
+  // A retry would come within 2 seconds; none comes in 4, even when the page comes back to the front.
+  await phone.waitForTimeout(4000);
+  await phone.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await phone.waitForTimeout(500);
+  expect(guestOpens()).toBe(tried);
+
+  await last.close();
+  await expect.poll(() => remote.relay.rooms.get(room)!.guests.size).toBe(3);
+  await phone.getByRole("button", { name: "重新要求控制" }).click();
+  await expect(phone.locator(".ct-rmt")).toHaveAttribute("data-ct-phase", "pairing");
+  expect(guestOpens()).toBe(tried + 1);
 });
 
 test("a paired phone resumes after a reload without asking again", async ({ page, remote }) => {

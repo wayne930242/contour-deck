@@ -40,8 +40,11 @@ Production has no such entry; `pnpm dev` replaces the list with `http://localhos
 The `Origin` check stops other web pages from using the relay.
 It does not stop a script, which can send any `Origin`; the host key, the room id, and the pairing code are what protect a deck.
 
-`UPGRADES` is a [Workers Rate Limiting][rate-limit] binding: 60 requests to room paths a minute per `CF-Connecting-IP` (namespace `930242`; bindings with the same namespace on the account share counters).
-`UPGRADES_PER_MINUTE` in `src/protocol.ts` repeats the number for the tests.
+`UPGRADES` and `HOSTS` are [Workers Rate Limiting][rate-limit] bindings, counted per `CF-Connecting-IP`.
+A host request that presents the room's key counts on `HOSTS`, 30 a minute (namespace `930243`); every other request to a room path counts on `UPGRADES`, 60 a minute (namespace `930242`).
+Bindings with the same namespace on the account share counters.
+So guests behind one address cannot spend the budget of the deck's own reconnects, and a host is still limited, since anyone can make a key for a room of their own.
+`UPGRADES_PER_MINUTE` and `HOSTS_PER_MINUTE` in `src/protocol.ts` repeat the numbers for the tests.
 The tests give every request a fresh address from 198.51.0.0/16, so one test file does not spend another's allowance.
 
 Workers Logs are off (`observability.enabled: false`), because request URLs carry the room id.
@@ -55,7 +58,7 @@ The code has no `console` call.
 | the host key | the Worker hashes `key` with `crypto.subtle` and compares it with the room before the object is reached, so a refused host costs no Durable Object request |
 | a host replaces a host | the object closes the old host (`4009`) and every guest (`4000`) and seats the new one; the alarm is set again for the new host |
 | `deny` and `revoke` remove the guest | the object forwards the frame, then closes the guest named by `to` with `4003` and tells the host `leave` |
-| requests per address | `env.UPGRADES.limit({ key: CF-Connecting-IP })` in the Worker, first thing on a room path |
+| requests per address | `env.HOSTS.limit` for a host with the room's key, else `env.UPGRADES.limit`, keyed on `CF-Connecting-IP`, in the Worker before any other check that can refuse the request (the key's hash is computed first, to pick the budget) |
 | sockets | WebSocket Hibernation API (`ctx.acceptWebSocket`): the object leaves memory between messages and the sockets stay connected |
 | role, id, rate state | each socket's attachment (`serializeAttachment`), read back on every event; the host and guests are found by tag |
 | 2 hours idle | an alarm set when the host opens; when it fires it reads the last-message time of every socket and either closes the room or re-arms for the remaining time, so messages cost no storage writes |
@@ -66,7 +69,7 @@ The code has no `console` call.
 ## Where the protocol left a choice
 
 - A socket the relay refuses (`4004`, `4029`) is upgraded and closed at once, without a `hello`.
-- The Worker checks a request to a room path in this order: per-address limit (429), `Origin` (403), room id (400), role (400), `Upgrade` header (426), host key (403 `bad host key`).
+- The Worker checks a request to a room path in this order: per-address limit (429; `HOSTS` for a host with the room's key, `UPGRADES` for the rest), `Origin` (403), room id (400), role (400), `Upgrade` header (426), host key (403 `bad host key`).
   So every request to a room path counts toward the limit, refused or not, and a plain GET with `role=host` and no key gets 426, not 403.
 - A key is read in either case, like a room id, and hashed in upper case.
 - A host that replaces another does not hear about the old guests: they are closed with `4000` and come back as new guests, which present their tokens again, as after a reload of the deck.
@@ -119,7 +122,10 @@ What is still exposed on the free plan:
   The decks, their notes, and the notes link keep working.
 - A guest connected to a room may send 60 messages a second, and each counts toward the Durable Object's daily requests.
   It needs the room id, which the projected QR shows; the presenter can deny it, which now closes it, but it can join again.
-- Everyone behind one address shares its 60 requests a minute: an audience on one venue network that scans the QR at once can delay the presenter's phone by up to a minute.
+- Guests behind one address (a venue network) share its 60 requests a minute, the presenter's phone included.
+  The client keeps that cost low: a guest refused with `4029` (room full) does not retry by itself, and one refused with `4004` (no host) waits up to a minute between tries.
+  Still, more than about 60 phones opening within a minute, or one person sending requests on purpose, makes the presenter's phone wait until that minute is over; a phone on its mobile network is not affected.
+  The deck's own connection counts on `HOSTS` and is not affected either.
 
 [workers-limits]: https://developers.cloudflare.com/workers/platform/limits/
 [do-pricing]: https://developers.cloudflare.com/durable-objects/platform/pricing/

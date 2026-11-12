@@ -30,6 +30,8 @@ export interface PanelOptions {
   allow(id: string): void;
   deny(id: string): void;
   revoke(): void;
+  /** After 4009: takes the host seat back for this tab. */
+  retake(): void;
   presenter(): void;
   resetTimer(): void;
   end(): void;
@@ -58,6 +60,10 @@ export function createPanel(options: PanelOptions): Panel {
   const closeButton = button("close", "✕");
   closeButton.setAttribute("aria-label", labels.close);
   head.append(h("h2", "", labels.title), status, closeButton);
+  // Another tab with the same key holds the seat (4009); this tab takes it back only when asked.
+  const retake = el.appendChild(h("div", "ct-rp-row"));
+  retake.append(h("p", "", labels.roomTaken), button("retake", labels.useThisWindow, true));
+  retake.hidden = true;
   /** Requests and the paired phone: the part that changes. */
   const live = el.appendChild(h("div", "ct-rp-live", "", { "aria-live": "polite" }));
   live.style.display = "contents";
@@ -94,6 +100,7 @@ export function createPanel(options: PanelOptions): Panel {
     allow: options.allow,
     deny: options.deny,
     revoke: options.revoke,
+    retake: options.retake,
     presenter: options.presenter,
     reset: options.resetTimer,
     end: options.end,
@@ -142,6 +149,7 @@ export function createPanel(options: PanelOptions): Panel {
               : view.relay === "closed"
                 ? labels.relayClosed
                 : labels.relayConnecting;
+      retake.hidden = !(view.relay === "closed" && view.code === 4009);
       status.textContent = relayText;
       status.hidden = !relayText;
       status.dataset.st = view.relay ?? "";

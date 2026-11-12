@@ -4,7 +4,8 @@
  * and go first in <head>, so a host's own rules win a tie.
  */
 const css = `
-.ct-btn[data-ct-act="remote"][data-ct-count]::after { content: attr(data-ct-count); content: attr(data-ct-count) / ""; margin-left: .4em; padding: .1em .4em; background: var(--ct-accent); color: var(--ct-accent-fg); }
+.ct-btn[data-ct-act="remote"]:is([data-ct-count], [data-ct-taken])::after { content: attr(data-ct-count); content: attr(data-ct-count) / ""; margin-left: .4em; padding: .1em .4em; background: var(--ct-accent); color: var(--ct-accent-fg); }
+.ct-btn[data-ct-act="remote"][data-ct-taken]::after { content: "!"; content: "!" / ""; }
 
 /* ---- over the stage: laser dot and ink ---- */
 .ct-ink { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; color: var(--ct-accent); }

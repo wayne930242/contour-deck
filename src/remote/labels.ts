@@ -14,6 +14,10 @@ export interface RemoteLabels {
   relayOpen: string;
   relayClosed: string;
   roomTaken: string;
+  /** Name of the bar button while another tab holds the room. */
+  roomTakenBar: string;
+  /** Takes the room back for this tab. */
+  useThisWindow: string;
   request: string;
   /** Name of the bar button while phones wait for an answer. */
   waiting(count: number): string;
@@ -86,6 +90,8 @@ export const defaultRemoteLabels: RemoteLabels = {
   relayOpen: "中繼已連線",
   relayClosed: "中繼離線，重試中",
   roomTaken: "房間已被另一個視窗使用",
+  roomTakenBar: "遙控：房間已被另一個視窗使用",
+  useThisWindow: "改用這個視窗",
   request: "有手機要求控制",
   waiting: count => `遙控：${count} 支手機等待允許`,
   code: "確認碼",
@@ -106,7 +112,7 @@ export const defaultRemoteLabels: RemoteLabels = {
   revoked: "電腦收回了控制權。",
   retry: "重新要求控制",
   noHost: "找不到簡報：電腦還沒開啟遙控，或已經關閉。重試中…",
-  full: "已有太多裝置連上這場簡報。重試中…",
+  full: "已有太多裝置連上這場簡報。等有人離開後再試一次。",
   badLink: "這個連結無法遙控，請重新掃描電腦上的 QR。",
   notesOnly: "只看講稿",
   leave: "離開",

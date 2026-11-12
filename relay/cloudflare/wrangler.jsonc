@@ -11,9 +11,13 @@
     // Production origins only. `pnpm dev` replaces this with localhost on any port.
     "ALLOWED_ORIGINS": "https://www.wayneh.tw,https://wayneh.tw,https://wayne930242.github.io,http://localhost:4321,http://127.0.0.1:4321"
   },
-  // Requests to room paths per client address (CF-Connecting-IP): 60 a minute, counted in each Cloudflare location.
-  // UPGRADES_PER_MINUTE in src/protocol.ts says the same number.
-  "ratelimits": [{ "name": "UPGRADES", "namespace_id": "930242", "simple": { "limit": 60, "period": 60 } }],
+  // Requests to room paths per client address (CF-Connecting-IP), counted in each Cloudflare location:
+  // UPGRADES 60 a minute for everything but a host with its key, HOSTS 30 a minute for those.
+  // UPGRADES_PER_MINUTE and HOSTS_PER_MINUTE in src/protocol.ts say the same numbers.
+  "ratelimits": [
+    { "name": "UPGRADES", "namespace_id": "930242", "simple": { "limit": 60, "period": 60 } },
+    { "name": "HOSTS", "namespace_id": "930243", "simple": { "limit": 30, "period": 60 } }
+  ],
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "Room" }]
   },

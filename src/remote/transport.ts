@@ -75,6 +75,11 @@ export interface RelayOptions {
 
 const FIRST_RETRY = 500;
 const LAST_RETRY = 15_000;
+/**
+ * The longest wait after `4004` (no host): a phone left open after the talk tries about once a minute, so the
+ * phones of one venue network do not spend the relay's per-address budget, which the presenter's phone shares.
+ */
+const LAST_RETRY_NO_HOST = 60_000;
 
 /** `https://relay.example` or `wss://relay.example` to the room endpoint. */
 export function relayUrl(base: string, { room, role, key }: RelayOptions): string {
@@ -83,13 +88,15 @@ export function relayUrl(base: string, { room, role, key }: RelayOptions): strin
 
 /**
  * Closes after which the connection is not opened again by itself: 4009, a newer connection with the same key
- * took the host seat (the same session in another tab); 4003, the host removed this guest.
+ * took the host seat (the same session in another tab); 4003, the host removed this guest; 4029, a guest found
+ * the room full (the audience behind one address would otherwise keep spending its request budget).
  */
-const FINAL = [4003, 4009];
+const FINAL = { host: [4003, 4009], guest: [4003, 4009, 4029] };
 
 /**
  * A WebSocket to the relay. A connection that ends is opened again with exponential backoff
- * (0.5 s doubling to 15 s, with jitter), and at once when the page comes back or the network returns.
+ * (0.5 s doubling to 15 s, 60 s after 4004, with jitter), and at once when the page comes back or the network
+ * returns. After a final close it waits for `reconnect()`.
  */
 export function relay(base: string, options: RelayOptions): Transport {
   const messages = emitter<Incoming>();
@@ -134,9 +141,10 @@ export function relay(base: string, options: RelayOptions): Transport {
       code = event.code;
       if (ended) return;
       set("closed");
-      parked = FINAL.includes(code);
+      parked = FINAL[options.role].includes(code);
       if (parked) return;
-      const delay = Math.min(LAST_RETRY, FIRST_RETRY * 2 ** attempt++) * (0.5 + Math.random() / 2);
+      const last = code === 4004 ? LAST_RETRY_NO_HOST : LAST_RETRY;
+      const delay = Math.min(last, FIRST_RETRY * 2 ** attempt++) * (0.5 + Math.random() / 2);
       timer = window.setTimeout(open, delay);
     };
   }

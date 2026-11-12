@@ -186,7 +186,7 @@ The laser dot eases towards its target and fades when released; with `prefers-re
 #### The relay
 
 The relay is a WebSocket forwarder, one room per talk, specified in [docs/PROTOCOL.md](docs/PROTOCOL.md): rooms, the pairing messages, close codes, and limits (2 KB frames, 60 messages a second, 4 guests).
-`relay(url, { room, role, key })` and `broadcast(room)` are the two `Transport`s (`send`, `subscribe`, `watch`, `reconnect`, `close`, `status`); the relay one reconnects with backoff, except after `4003` (removed by the host) and `4009` (another tab of the session took the host seat).
+`relay(url, { room, role, key })` and `broadcast(room)` are the two `Transport`s (`send`, `subscribe`, `watch`, `reconnect`, `close`, `status`); the relay one reconnects with backoff (up to 15 s between tries, 60 s after `4004`, no host), except after `4003` (removed by the host), `4009` (another tab of the session took the host seat), and, for a guest, `4029` (room full).
 The demo takes a relay from the query string, the deployed one or one on this machine: `https://wayne930242.github.io/contour-deck/?relay=wss://contour-relay.wayne930242.workers.dev&view=deck`, or `?relay=ws://localhost:8787`; it ignores any other.
 The phone must be able to open the page's URL, so a deck on `localhost` needs a tunnel or the LAN address for the phone part.
 

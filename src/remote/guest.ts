@@ -10,7 +10,7 @@ import type { Transport } from "./transport.js";
 /**
  * `connecting`: no answer from the room yet. `pairing`: showing a code, waiting for the presenter.
  * `granted`: in control. `denied`, `revoked`: the presenter said no; the connection is closed until `retry()`.
- * `offline`: the connection ended and is being retried.
+ * `offline`: the connection ended and is being retried, except after 4029 (room full), where it waits for `retry()`.
  */
 export type GuestPhase = "connecting" | "pairing" | "granted" | "denied" | "revoked" | "offline";
 
@@ -34,7 +34,7 @@ export interface Guest {
   /** Starts an ink stroke; its points go out in batches. */
   stroke(): Stroke;
   clearInk(): void;
-  /** After `denied` or `revoked`: connects again and asks anew. */
+  /** After `denied` or `revoked`, or offline after 4029 (room full): connects again and asks anew. */
   retry(): void;
   /** Calls `listener` after every change of phase, code, or state. */
   subscribe(listener: () => void): () => void;
@@ -229,9 +229,12 @@ export function createGuest({ room, open, trusted = false }: GuestOptions): Gues
     },
     clearInk: () => send({ t: "ink-clear" }),
     retry() {
-      if (closed || (phase !== "denied" && phase !== "revoked")) return;
+      if (closed) return;
+      const full = phase === "offline" && transport.code === 4029;
+      if (!full && phase !== "denied" && phase !== "revoked") return;
       phase = "connecting";
-      connect();
+      if (full) transport.reconnect();
+      else connect();
       emit();
     },
     subscribe(listener) {

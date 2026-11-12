@@ -52,6 +52,8 @@ export interface Forwarded {
 export class RelayStub {
   readonly rooms = new Map<string, Room>();
   readonly forwarded: Forwarded[] = [];
+  /** Every socket opened to a room, refused or not, in order. */
+  readonly opens: { room: string; role: string }[] = [];
   private ids = 0;
 
   /** Routes the relay URL in a browser context. Call it for every context of a test, before its pages load. */
@@ -83,6 +85,7 @@ export class RelayStub {
     const role = url.searchParams.get("role");
     const name = match?.[1] ?? "";
     if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(name) || (role !== "host" && role !== "guest")) return void socket.close({ code: 1008, reason: "bad request" });
+    this.opens.push({ room: name, role: role ?? "" });
     const room = this.rooms.get(name) ?? { host: null, guests: new Map<string, Peer>() };
     const peer: Peer = { id: `g${String(++this.ids).padStart(7, "0")}`, role, socket, tokens: BURST, refilled: Date.now() };
 

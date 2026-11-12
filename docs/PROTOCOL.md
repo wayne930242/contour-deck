@@ -37,7 +37,8 @@ One Durable Object per room (`idFromName(room)`).
 | no message in the room for 2 hours | closes everyone with `4000` |
 | a socket exceeds 60 messages/s (burst 120) | extra messages are dropped; above 10 s of sustained excess, closes with `1008` |
 | request `Origin` not in `ALLOWED_ORIGINS` | HTTP 403 before the upgrade |
-| more than 60 requests to room paths a minute from one client address | HTTP 429 before anything else is checked |
+| more than 60 requests to room paths a minute from one client address, not counting host requests with the room's key | HTTP 429 before anything else is checked |
+| more than 30 host requests with the room's key a minute from one client address | HTTP 429 before anything else is checked |
 
 `ALLOWED_ORIGINS` is a comma-separated Worker variable (e.g. `https://www.wayneh.tw,https://wayne930242.github.io,http://localhost:4321`). Guests never reach other guests.
 
@@ -92,8 +93,8 @@ The presenter window on the same computer uses `BroadcastChannel("contour-deck:<
 | --- | --- |
 | `4000` | room closed (host left or idle, or a new host took the seat) |
 | `4003` | removed by the host (after `deny` or `revoke`); the client does not reconnect by itself |
-| `4004` | no host in this room |
+| `4004` | no host in this room; the client retries with a longer backoff (up to 60 s between tries) |
 | `4009` | host replaced: a newer connection with the same key holds the host seat; the client does not reconnect by itself |
-| `4029` | room full |
+| `4029` | room full; the client does not reconnect by itself (each retry would count against the address's limit) |
 | `1008` | rate limit |
 | `1009` | message too large |

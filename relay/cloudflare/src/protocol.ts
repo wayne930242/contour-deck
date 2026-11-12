@@ -5,6 +5,11 @@ export const MAX_GUESTS = 4;
 export const IDLE_MS = 2 * 60 * 60 * 1000;
 /** Requests to room paths one client address may make per minute (the `UPGRADES` binding in wrangler.jsonc). */
 export const UPGRADES_PER_MINUTE = 60;
+/**
+ * Host requests that present the room's key, per client address and minute (the `HOSTS` binding): a budget of
+ * their own, so guests behind the same address (a venue network) cannot lock the deck out of its room.
+ */
+export const HOSTS_PER_MINUTE = 30;
 
 export const CLOSE = {
   roomClosed: 4000,
