@@ -18,7 +18,7 @@ rehypePlugins: [[rehypeDeck, { title: "大綱優先的簡報", match }]],
 `structure` is `"slides"` (the default, described below) or `"headings"` ([Headings mode](#headings-mode)), or a function of the file that returns one of them.
 Give both plugins the same `match` and the same `structure`.
 A file only one of them accepts is left with markers nobody reads, or with directives nobody turned into markers.
-With different structures the file fails: `remarkDeck` records on `file.data` the structure it read the file by, and `rehypeDeck` compares it with its own.
+When both run on the same file (one unified pipeline), different structures make the file fail: `remarkDeck` records on `file.data` the structure it read the file by, and `rehypeDeck` compares it with its own.
 
 ## Markdown
 

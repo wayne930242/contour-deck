@@ -28,13 +28,17 @@ interface BlockDraft {
 /**
  * What the current page holds so far, while the next heading still joins it instead of breaking:
  * `"opening"` is nothing or just a kicker (a `##` or `###` joins), `"title"` is the slide's `##`
- * and whatever opened with it (a `###` joins). Notes and directives never count.
+ * and whatever opened with it (a `###` joins). Notes, `::block`/`::slide`, and HTML comments never count.
  */
 type Bare = "opening" | "title" | undefined;
 
 /** An HTML comment: a `comment` node (after rehype-raw), or a `raw` node of nothing but comments. */
 const isComment = (node: HastNode): boolean =>
-  node.type === "comment" || (node.type === "raw" && /^\s*(<!--[\s\S]*?-->\s*)+$/.test(node.value ?? ""));
+  node.type === "comment" || (node.type === "raw" && /^\s*(<!--(?:(?!-->)[\s\S])*-->\s*)+$/.test(node.value ?? ""));
+
+/** A slide's pages without their speaker notes, which never reach the audience. */
+const visibleOf = (slide: SlideDraft): HastNode[][] =>
+  slide.pages.map(page => page.filter(node => !(isElement(node) && NOTES in node.properties)));
 
 function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
   let slide: SlideDraft = { pages: [[]] };
@@ -111,7 +115,7 @@ function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
   }
 
   // Only the opening can be left empty: every other slide starts with its `##`.
-  if (!slides[0].pages[0].length) {
+  if (!slides[0].pages[0].some(node => !isComment(node))) {
     const marker = idMarkers.get(slides[0]);
     if (marker) file.fail("::slide without any content in its slide", marker, ORIGIN);
     slides.shift();
@@ -141,7 +145,8 @@ export function readHeadings(flow: HastNode[], deckTitle: string | undefined, fi
       ? { ...mark, title: own, short: mark.short ?? shortOf(own), kind: mark.kind ?? kindOf(own) }
       : {
           ...mark,
-          title: blocks.length > 1 ? slideTitle(slides[0].pages, "Slides") : leadTitle(deckTitle, drafts, slides[0]),
+          title:
+            (blocks.length > 1 && slideTitle(visibleOf(slides[0]), "")) || leadTitle(deckTitle, drafts, slides[0]),
         };
     return { spec, slides };
   });

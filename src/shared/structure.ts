@@ -41,7 +41,10 @@ export function recordStructure(file: DeckFile, structure: Structure): void {
 
 /** Fails when `remarkDeck` read the file by another structure than `rehypeDeck` is about to. */
 export function checkStructure(file: DeckFile, structure: Structure, origin: string): void {
-  const recorded = (file.data as Record<string, unknown>)[RECORD];
+  const data = file.data as Record<string, unknown>;
+  const recorded = data[RECORD];
+  // Read once: a later pass on the same file without remarkDeck must not see a stale record.
+  delete data[RECORD];
   if (recorded !== undefined && recorded !== structure) {
     file.fail(
       `remarkDeck ran with structure "${String(recorded)}" and rehypeDeck with "${structure}": give both the same structure option`,

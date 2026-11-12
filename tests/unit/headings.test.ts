@@ -15,6 +15,19 @@ const view = (markdown: string, options: DeckOptions = {}, data = {}) =>
 
 const slidesOf = (markdown: string, options: DeckOptions = {}) => view(markdown, options).blocks.flatMap(block => block.slides);
 
+/** The headings pipeline with raw HTML passed through, as Astro does. */
+const rawView = (markdown: string, file = new VFile({ value: markdown })) => {
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkDirective)
+    .use(remarkDeck, { structure: "headings" })
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeDeck, { structure: "headings" });
+  return outline(processor.runSync(processor.parse(file), file) as never);
+};
+const rawPages = (markdown: string) =>
+  rawView(markdown).blocks.map(block => block.slides.map(slide => slide.pages.map(page => page.content)));
+
 /** Three blocks: a title slide, a block with a kicker and a three-page slide, an appendix. */
 const deck = [
   `# 輪廓優先的簡報`,
@@ -273,6 +286,37 @@ describe("structure option", () => {
     expect(() => toHast(`## 甲`, { structure: fromFile }, frontmatter("heading"))).toThrow(message);
     expect(() => toHast(`## 甲`, { structure: fromFile }, frontmatter("heading"), {})).toThrow(message);
     expect(() => toHast(`## 甲`, {}, {}, { structure: "heading" as never })).toThrow(message);
+  });
+
+  it("reads a long run of comments in linear time", { timeout: 900 }, () => {
+    expect(rawPages(`## 甲\n\n${"<!--a-->".repeat(30)}x`)).toHaveLength(1);
+  });
+
+  it("counts a raw node mixing comments and HTML as content", () => {
+    expect(rawPages(`## 甲\n\n<!-- a --> <b>x</b> <!-- c -->\n\n### 一\n\n正文`)[0][0]).toHaveLength(2);
+  });
+
+  it("skips a block that holds only comments", () => {
+    expect(rawPages(`## 甲\n\n---\n\n<!-- TODO -->\n\n---\n\n## 乙`)).toHaveLength(2);
+    expect(rawPages(`## 甲\n\n---\n\n<!-- end -->`)).toHaveLength(1);
+    expect(() => rawView(`## 甲\n\n---\n\n::slide{#a}\n\n<!-- only -->`)).toThrow(/::slide without any content/);
+  });
+
+  it("does not title a heading-less block by its speaker notes", () => {
+    const titles = (markdown: string) => view(markdown, { title: "全場" }).blocks.map(block => block.title);
+    expect(titles(`## 甲\n\n---\n\n:::summary\n講者私下的提示\n:::\n\n![圖](a.png)`)[1]).not.toMatch(/講者/);
+    expect(titles(`## 甲\n\n---\n\n:::summary\n講者私下的提示\n:::\n\n正文一段`)[1]).toBe("正文一段");
+  });
+
+  it("titles a heading-less block without text by the deck title, not \"Slides\"", () => {
+    expect(view(`## 甲\n\n---\n\n![圖](a.png)`, { title: "全場" }).blocks.map(block => block.title)).toEqual(["甲", "全場"]);
+  });
+
+  it("does not carry a structure record into a later rehype-only pass on the same file", () => {
+    const file = new VFile({ value: `## 甲` });
+    rawView(`## 甲`, file);
+    const tree = unified().use(remarkParse).use(remarkRehype).runSync(unified().use(remarkParse).parse(file), file);
+    expect(() => unified().use(rehypeDeck, { structure: "slides" }).runSync(tree as never, file)).not.toThrow();
   });
 
   it("fails when the two plugins were given different structures", () => {
