@@ -1,5 +1,5 @@
-/** The outline: one panel per block, one schematic thumbnail per slide. */
-import { h, offsetIn } from "./dom.js";
+/** The outline: one panel per block, one schematic thumbnail per slide; in 3D, one row per block on the depth desk. */
+import { clamp, h, offsetIn } from "./dom.js";
 import type { BlockNode } from "./model.js";
 import type { Labels } from "./types.js";
 
@@ -10,6 +10,16 @@ export interface Overview {
   thumbs: HTMLButtonElement[][];
   /** Moves the "you are here" ring onto a thumbnail. */
   ring(b: number, s: number, instant?: boolean): void;
+  /** Records that a slide has been on the stage: the outline shows it faded. */
+  seen(b: number, s: number): void;
+  /** Switches the depth desk on or off and fits its rows to the outline's size. */
+  depth(on: boolean): void;
+  /** The depth desk's camera: the row it stands at, fractional while it moves. Without an argument, reads it. */
+  camera(at?: number): number;
+  /** The block whose row is under `el`, or -1. */
+  rowOf(el: Element): number;
+  /** Scroll distance of one row on the depth desk. */
+  readonly step: number;
 }
 
 const FIGURE = "figure,img,picture,svg,canvas,video,iframe";
@@ -41,12 +51,25 @@ function sketch(page: HTMLElement): HTMLElement {
 
 export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
   const el = h("div", "ct-ov");
-  const plane = el.appendChild(h("div", "ct-plane"));
+  // In 3D the desk is the camera (sticky, clipped, with the perspective) and the plane the scene inside it;
+  // the snap points under them give each row a stop of native scrolling.
+  const desk = el.appendChild(h("div", "ct-desk"));
+  const plane = desk.appendChild(h("div", "ct-plane"));
+  const stops = el.appendChild(h("div", "ct-stops", "", { "aria-hidden": "true" }));
   const faces: HTMLElement[][] = [];
   const thumbs: HTMLButtonElement[][] = [];
+  const tiles: HTMLElement[] = [];
+  const visited = blocks.map(block => block.slides.map(() => false));
+  let depth = false;
+  let cam = 0;
+  let front = -1;
+  let here: HTMLElement | null = null;
 
   blocks.forEach((block, b) => {
     const tile = plane.appendChild(h("section", "ct-tile"));
+    tile.style.setProperty("--i", String(b));
+    tiles.push(tile);
+    stops.append(h("i"));
     if (block.kind) tile.dataset.kind = block.kind;
     if (block.slides.length > 3) tile.dataset.wide = "";
     const pages = block.slides.reduce((sum, slide) => sum + slide.pages.length, 0);
@@ -81,13 +104,72 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
   });
 
   const ringEl = plane.appendChild(h("div", "ct-ring", "", { "data-label": labels.here }));
-  return {
+  let ringAt: [number, number] = [0, 0];
+
+  /** Rows the camera has passed slide out and take no pointer; the row in front shows its stacks in depth. */
+  function setFront(row: number) {
+    if (row === front) return;
+    front = row;
+    tiles.forEach((tile, b) => {
+      tile.toggleAttribute("data-ct-front", depth && b === row);
+      tile.toggleAttribute("data-ct-past", depth && b < row);
+    });
+  }
+
+  /** In 3D a row taller than six tenths of the outline is scaled down; all rows hang from one line that leaves room for the tallest. */
+  function fit() {
+    if (!depth) return;
+    const height = el.clientHeight;
+    let tallest = 0;
+    for (const tile of tiles) {
+      const scale = Math.min(1, (height * 0.6) / (tile.offsetHeight || 1));
+      tile.style.setProperty("--fit", scale.toFixed(3));
+      tallest = Math.max(tallest, tile.offsetHeight * scale);
+    }
+    plane.style.setProperty("--ct-top", `${Math.round(clamp(height - tallest - 40, height * 0.36, height * 0.6))}px`);
+  }
+
+  const api: Overview = {
     el,
     faces,
     thumbs,
+    get step() {
+      return (stops.firstElementChild as HTMLElement).offsetHeight || 1;
+    },
+    depth(on) {
+      depth = on;
+      front = -1;
+      if (on) fit();
+      setFront(on ? clamp(Math.round(cam), 0, tiles.length - 1) : -1);
+      api.ring(...ringAt, true);
+    },
+    camera(at) {
+      if (at === undefined) return cam;
+      cam = at;
+      plane.style.setProperty("--ct-cam", String(+at.toFixed(4)));
+      setFront(depth ? clamp(Math.round(at), 0, tiles.length - 1) : -1);
+      return cam;
+    },
+    rowOf: target => tiles.findIndex(tile => tile.contains(target)),
+    seen(b, s) {
+      visited[b][s] = true;
+      thumbs[b][s].setAttribute("data-ct-seen", "");
+    },
     ring(b, s, instant) {
+      ringAt = [b, s];
+      // The current thumbnail stands out of the faded ones; a block is faded once all its slides were shown and it is not current.
+      here?.removeAttribute("aria-current");
+      here = thumbs[b][s];
+      here.setAttribute("aria-current", "true");
+      tiles.forEach((tile, i) => tile.toggleAttribute("data-ct-seen", i !== b && visited[i].every(Boolean)));
       const face = faces[b][s];
-      const { x, y } = offsetIn(face, plane);
+      // In 3D the ring rides in the row of its thumbnail, so it moves with that row.
+      const host = depth ? tiles[b] : plane;
+      if (ringEl.parentElement !== host) {
+        host.append(ringEl);
+        instant = true;
+      }
+      const { x, y } = offsetIn(face, host);
       const style = ringEl.style;
       if (instant) style.transition = "none";
       style.left = `${x}px`;
@@ -101,4 +183,5 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
       }
     },
   };
+  return api;
 }

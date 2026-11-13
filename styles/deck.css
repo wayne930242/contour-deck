@@ -8,6 +8,9 @@
   --ct-muted: var(--muted-foreground, color-mix(in srgb, var(--ct-fg) 62%, var(--ct-bg)));
   --ct-measure: 62rem;
   --ct-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* the depth desk (3D outline): how far back each row stands, and how much higher */
+  --ct-row-depth: 260px;
+  --ct-row-rise: 26px;
 }
 .ct-app {
   --ct-panel: color-mix(in srgb, var(--ct-fg) 4%, var(--ct-bg));
@@ -51,7 +54,7 @@
 
 /* ---- outline ---- */
 .ct-ov { position: absolute; inset: 0; overflow: auto; padding: 1.1rem; }
-.ct-plane { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1rem; max-width: 86rem; margin: 0 auto; transform-style: preserve-3d; transition: transform .7s var(--ct-ease); }
+.ct-plane { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1rem; max-width: 86rem; margin: 0 auto; transform-style: preserve-3d; }
 .ct-tile { border: 1px solid var(--ct-border); background: var(--ct-bg); padding: .7rem .8rem .9rem; transform-style: preserve-3d; min-width: 0; }
 .ct-tile[data-kind="appendix"] { background: var(--ct-panel); }
 @media (min-width: 900px) { .ct-tile[data-wide] { grid-column: span 2; } }
@@ -84,13 +87,44 @@
 .ct-ring { position: absolute; left: 0; top: 0; pointer-events: none; outline: 2px solid var(--ct-accent); outline-offset: 3px; z-index: 3; transition: left .38s var(--ct-ease), top .38s var(--ct-ease), width .38s var(--ct-ease), height .38s var(--ct-ease), transform .7s var(--ct-ease); }
 .ct-ring::after { content: attr(data-label); position: absolute; left: -5px; top: calc(100% + 5px); font: 650 .56rem/1 var(--ct-mono); letter-spacing: .08em; padding: .2rem .3rem; background: var(--ct-accent); color: var(--ct-accent-fg); white-space: nowrap; }
 
-/* 3D structure: the plane tilts and every slide becomes a stack as high as its page count */
-.ct-app[data-ct-3d] .ct-ov { overflow: hidden; }
-.ct-app[data-ct-3d] .ct-plane { transform: translateY(-4%) rotateX(52deg) rotateZ(-24deg) scale(.86); }
-.ct-app[data-ct-3d] .ct-layer { transform: translateZ(calc((var(--n) - 1 - var(--k)) * var(--ct-lift))); }
-.ct-app[data-ct-3d] .ct-face { transform: translateZ(calc((var(--n) - 1) * var(--ct-lift))); }
-.ct-app[data-ct-3d] .ct-thumb:is(:hover, :focus-visible) { transform: translateZ(22px); }
-.ct-app[data-ct-3d] .ct-ring { transform: translateZ(calc((var(--n) - 1) * var(--ct-lift) + 1px)); }
+/* Faded: a slide already shown, a block already finished, and on the depth desk the rows far behind.
+   Colours mix toward the background instead of using opacity, which would flatten the 3D of a row. */
+.ct-plane { --ct-ink: var(--ct-fg); --ct-line: var(--ct-border); --ct-dim: var(--ct-muted); }
+.ct-plane :is(.ct-tile, .ct-thumb) {
+  --ct-fade: min(80%, (var(--ct-fog, 0) + var(--ct-was, 0)) * 100%);
+  --ct-fg: color-mix(in srgb, var(--ct-bg) var(--ct-fade), var(--ct-ink));
+  --ct-border: color-mix(in srgb, var(--ct-bg) var(--ct-fade), var(--ct-line));
+  --ct-muted: color-mix(in srgb, var(--ct-bg) var(--ct-fade), var(--ct-dim));
+}
+.ct-app .ct-plane :is(.ct-tile, .ct-thumb) { color: var(--ct-fg); }
+.ct-plane .ct-thumb { --ct-was: 0; }
+.ct-plane :is(.ct-tile[data-ct-seen], .ct-thumb[data-ct-seen]:not([aria-current])) { --ct-was: .5; }
+
+/* 3D, the depth desk: every block is a row facing the viewer. The camera stands at row --ct-cam (the scroll position, one
+   snap stop per row); rows ahead recede and rise, rows passed slide out toward the viewer. Only the row in front stacks its pages in depth. */
+.ct-stops { display: none; }
+.ct-app[data-ct-3d] .ct-ov { container-type: size; padding: 0; overflow: hidden auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; }
+.ct-app[data-ct-3d] .ct-ov::-webkit-scrollbar { display: none; }
+.ct-app[data-ct-3d] .ct-desk { position: sticky; top: 0; height: 100cqh; overflow: clip; perspective: 1000px; perspective-origin: 50% 0; z-index: 1; }
+.ct-app[data-ct-3d] .ct-stops { display: block; margin-top: -100cqh; pointer-events: none; }
+.ct-stops i { display: block; height: 120px; scroll-snap-align: start; scroll-snap-stop: always; }
+.ct-stops i:last-child { height: 100cqh; }
+/* The scene's own surface stands at depth 0, in front of every row behind: only the rows take the pointer. */
+.ct-app[data-ct-3d] .ct-plane { position: absolute; inset: 0; display: block; max-width: none; margin: 0; pointer-events: none; }
+.ct-app[data-ct-3d] .ct-tile {
+  --ahead: max(var(--i) - var(--ct-cam, 0), 0);
+  --past: min(var(--i) - var(--ct-cam, 0), 0);
+  --ct-fog: min(var(--ahead) * .14, .56);
+  position: absolute; left: 50%; top: var(--ct-top, 40%); width: min(100% - 2.4rem, 60rem); transform-origin: 50% 0;
+  transform: translate3d(-50%, calc(var(--past) * -45cqh - min(var(--ahead), 4) * var(--ct-row-rise)), calc(var(--past) * -240px - var(--ahead) * var(--ct-row-depth))) scale(var(--fit, 1));
+  opacity: calc(1 + var(--past) * 1.6);
+  pointer-events: auto;
+}
+.ct-app[data-ct-3d] .ct-tile[data-ct-past] { pointer-events: none; }
+.ct-app[data-ct-3d] .ct-tile:not([data-ct-front]) { cursor: pointer; }
+.ct-app[data-ct-3d] [data-ct-front] .ct-layer { transform: translate3d(calc(var(--k) * 3px), calc(var(--k) * 3px), calc((var(--n) - 1 - var(--k)) * var(--ct-lift))); }
+.ct-app[data-ct-3d] [data-ct-front] :is(.ct-face, .ct-ring) { transform: translateZ(calc((var(--n) - 1) * var(--ct-lift))); }
+.ct-plane[data-ct-still] :is(.ct-layer, .ct-face, .ct-ring, .ct-thumb) { transition: none; }
 
 /* ---- stage: one block is a left-right track; each slide scrolls by pages ---- */
 .ct-stage { position: absolute; inset: 0; background: var(--ct-bg); border: 1px solid var(--ct-border); transform-origin: 0 0; z-index: 2; overflow: hidden; outline: none; container-type: size; }
@@ -147,5 +181,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ct-app :is(.ct-plane, .ct-layer, .ct-face, .ct-thumb, .ct-ring, .ct-rm, [data-ct-step]) { transition-duration: .01ms !important; }
+  .ct-app :is(.ct-layer, .ct-face, .ct-thumb, .ct-ring, .ct-rm, [data-ct-step]) { transition-duration: .01ms !important; }
 }

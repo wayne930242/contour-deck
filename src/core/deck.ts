@@ -44,6 +44,10 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   /** A slide change the deck itself started and whose scroll has not arrived yet. */
   let pending: { s: number; top: () => number; left: number; still: number } | null = null;
   let wakeLock: Promise<WakeLockSentinel | void> | null = null;
+  /** The depth desk: the row the camera is headed for, and the camera move under way. */
+  let aim = 0;
+  let move = 0;
+  let endMove: (() => void) | null = null;
 
   /* ---- shell: bar, outline, stage, notes panel, notes view ---- */
   const app = h("div", "ct-app");
@@ -149,6 +153,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     // The title first: its width moves the rail, and the marker is placed by layout offsets.
     titleEl.textContent = mode === "stage" ? blocks[pos.b].title : deckTitle;
     rail.mark(pos);
+    if (mode === "stage") overview.seen(pos.b, pos.s);
     overview.ring(pos.b, pos.s);
 
     const height = slide.el.clientHeight || 1;
@@ -329,8 +334,17 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   };
   const thumbRect = (at: Pos) => {
     const face = overview.faces[at.b][at.s];
-    face.scrollIntoView({ block: "nearest" });
-    return face.getBoundingClientRect();
+    if (!depthOn()) {
+      face.scrollIntoView({ block: "nearest" });
+      return face.getBoundingClientRect();
+    }
+    // On the depth desk the block's row comes to the front at once, and the rectangle is read where its sheets end up.
+    front(at.b, true);
+    const plane = face.closest<HTMLElement>(".ct-plane")!;
+    plane.setAttribute("data-ct-still", "");
+    const rect = face.getBoundingClientRect();
+    plane.removeAttribute("data-ct-still");
+    return rect;
   };
   const cancel = (animations: Animation[]) => animations.forEach(animation => animation.cancel());
 
@@ -375,9 +389,19 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     stage.style.opacity = "0";
     cancel(out);
     place(at, end);
-    const thumb = thumbRect(pos);
-    render();
-    await wait(reduced() ? 80 : 400);
+    let thumb: DOMRect;
+    if (depthOn()) {
+      // On the depth desk the camera moves forward to the new block's row, then the stage grows out of it.
+      render();
+      await front(pos.b);
+      if (!alive) return;
+      thumb = thumbRect(pos);
+      await wait(reduced() ? 80 : 160);
+    } else {
+      thumb = thumbRect(pos);
+      render();
+      await wait(reduced() ? 80 : 400);
+    }
     if (!alive) return;
     const into = zoomStage(stage, root, thumb, "in", 460, reduced());
     stage.style.opacity = "";
@@ -408,6 +432,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     readScroll();
     if (mode === "stage") return close();
     mode = "overview";
+    if (depthOn()) front(pos.b, true);
     render();
   }
 
@@ -435,7 +460,63 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
 
   /* ---- input ---- */
   const press = (el: HTMLElement, on: boolean) => el.setAttribute("aria-pressed", String(on));
-  const toggle3d = () => press(threeDButton, app.toggleAttribute("data-ct-3d"));
+  const depthOn = () => app.hasAttribute("data-ct-3d");
+
+  function toggle3d() {
+    const on = app.toggleAttribute("data-ct-3d");
+    press(threeDButton, on);
+    stopMove();
+    overview.depth(on);
+    if (on) front(pos.b, true);
+    else {
+      overview.el.scrollTop = 0;
+      overview.faces[pos.b][pos.s].scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function stopMove() {
+    cancelAnimationFrame(move);
+    move = 0;
+    endMove?.();
+    endMove = null;
+  }
+
+  /** Brings a block's row to the front of the depth desk: the camera glides there, or jumps under reduced motion. */
+  function front(b: number, instant = reduced()): Promise<void> {
+    b = clamp(b, 0, blocks.length - 1);
+    if (move && aim === b && !instant) return Promise.resolve();
+    stopMove();
+    aim = b;
+    const ov = overview.el;
+    const from = overview.camera();
+    if (instant || from === b) {
+      overview.camera(b);
+      ov.scrollTop = b * overview.step;
+      return Promise.resolve();
+    }
+    const started = performance.now();
+    const ms = clamp(240 + 80 * Math.abs(b - from), 240, 640);
+    return new Promise(resolve => {
+      endMove = resolve;
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - started) / ms);
+        overview.camera(from + (b - from) * (1 - (1 - t) ** 3));
+        if (t < 1) return void (move = requestAnimationFrame(tick));
+        move = 0;
+        endMove = null;
+        ov.scrollTop = b * overview.step;
+        resolve();
+      };
+      move = requestAnimationFrame(tick);
+    });
+  }
+
+  /** A row on the depth desk, with the focus on its first thumbnail, or on the current one in the current block. */
+  function toRow(b: number) {
+    b = clamp(b, 0, blocks.length - 1);
+    overview.thumbs[b][b === pos.b ? pos.s : 0].focus({ preventScroll: true });
+    void front(b);
+  }
 
   /** The stage changed size: put the current slide and page back in view. */
   function align(p = pos.p) {
@@ -461,12 +542,21 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   const remote = () => options.remote?.(api);
   const actions: Record<string, () => unknown> = { overview: toOverview, "3d": toggle3d, script: toScript, notes: toggleNotes, remote, prev, next, exit };
 
+  /** The row in front when the pointer went down: the focus that follows may already be bringing another row forward. */
+  let pressed: number | null = null;
+  overview.el.addEventListener("pointerdown", () => void (pressed = aim), { capture: true, signal });
+
   app.addEventListener(
     "click",
     event => {
       const target = event.target as Element;
       const action = target.closest<HTMLElement>("[data-ct-act]")?.dataset.ctAct;
       if (action) return void actions[action]?.();
+      // On the depth desk a click on a row behind brings it to the front; only the row in front opens.
+      const row = mode === "overview" && depthOn() ? overview.rowOf(target) : -1;
+      const wasFront = pressed ?? aim;
+      pressed = null;
+      if (row >= 0 && row !== wasFront) return void front(row);
       const go = target.closest<HTMLElement>("[data-ct-go]")?.dataset.ctGo;
       if (!go) return;
       const [b, s, p] = go.split(",").map(Number);
@@ -479,7 +569,14 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     "resize",
     () => {
       const p = pos.p;
-      requestAnimationFrame(() => alive && align(p));
+      requestAnimationFrame(() => {
+        if (!alive) return;
+        if (depthOn()) {
+          overview.depth(true);
+          front(aim, true);
+        }
+        align(p);
+      });
     },
     { signal }
   );
@@ -498,12 +595,36 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   function focusThumb(step: number) {
     const all = overview.thumbs.flat();
     const focused = all.indexOf(document.activeElement as HTMLButtonElement);
-    all[focused < 0 ? all.indexOf(overview.thumbs[pos.b][pos.s]) : clamp(focused + step, 0, all.length - 1)].focus();
+    all[focused < 0 ? all.indexOf(overview.thumbs[pos.b][pos.s]) : clamp(focused + step, 0, all.length - 1)].focus({ preventScroll: depthOn() });
   }
+
+  // On the depth desk the focus brings its row to the front: Tab, the arrow keys, a click.
+  overview.el.addEventListener(
+    "focusin",
+    event => {
+      const row = depthOn() ? overview.rowOf(event.target as Element) : -1;
+      if (row >= 0 && row !== aim) void front(row);
+    },
+    { signal }
+  );
+
+  // Native scrolling (touch, the scroll bar) moves the camera; one snap stop per row.
+  overview.el.addEventListener(
+    "scroll",
+    () => {
+      if (!depthOn() || move) return;
+      const at = overview.el.scrollTop / overview.step;
+      const row = Math.round(at);
+      overview.camera(Math.abs(at - row) < 0.02 ? row : at);
+      aim = clamp(row, 0, blocks.length - 1);
+    },
+    { passive: true, signal }
+  );
 
   document.addEventListener(
     "keydown",
     event => {
+      pressed = null;
       const target = event.target as Element;
       if (event.metaKey || event.ctrlKey || event.altKey || busy || target.closest?.("input,textarea,select,[contenteditable]")) return;
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
@@ -512,8 +633,11 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
       let run: (() => unknown) | undefined;
       if (key === "r" && options.remote && mode !== "notes") run = remote;
       else if (mode === "overview") {
+        const rows = depthOn();
         if (key === "3") run = toggle3d;
         else if (key === "Escape") run = exit;
+        else if (rows && (key === "ArrowUp" || key === "ArrowDown")) run = () => toRow(aim + (key === "ArrowDown" ? 1 : -1));
+        else if (rows && (key === "Home" || key === "End")) run = () => toRow(key === "Home" ? 0 : blocks.length - 1);
         else if (key.startsWith("Arrow")) run = () => focusThumb(key === "ArrowRight" || key === "ArrowDown" ? 1 : -1);
         else if (key === "PageDown" || (activates && !onControl)) run = next;
       } else if (mode === "notes") {
@@ -559,6 +683,19 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     );
   }
 
+  // The depth desk: one wheel gesture moves one row.
+  const rowStep = createWheelGate();
+  overview.el.addEventListener(
+    "wheel",
+    event => {
+      if (!depthOn() || event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const step = rowStep(event.deltaY * (event.deltaMode === 1 ? 16 : 1), performance.now(), busy);
+      if (step) toRow(aim + step);
+    },
+    { passive: false, signal }
+  );
+
   /* ---- start ---- */
   const params = new URLSearchParams(useUrl ? location.search : "");
   const startAt = resolve(options.at ?? params.get("at") ?? "");
@@ -577,6 +714,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     alive = false;
     listeners.destroy.forEach(listener => listener());
     abort.abort();
+    stopMove();
     cancelAnimationFrame(frame);
     clearTimeout(idle);
     setCurrent(null);

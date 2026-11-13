@@ -101,8 +101,9 @@ const idle = page =>
 const state = page => page.evaluate(() => JSON.stringify(window.contourDemo.deck?.state));
 
 /** Moves the mouse to the middle of a locator in small steps, so the viewer follows the pointer, then lets it rest. */
-async function moveTo(page, locator, { steps = 28, rest = 350 } = {}) {
-  await locator.scrollIntoViewIfNeeded();
+async function moveTo(page, locator, { steps = 28, rest = 350, scroll = true } = {}) {
+  // On the depth desk scrolling is the camera, so a row behind is reached where it shows, without scrolling.
+  if (scroll) await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   if (!box) throw new Error(`no box for ${locator}`);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps });
@@ -162,13 +163,22 @@ const crossBlock = async page => {
 
 const structure = async page => {
   await pause(1200);
-  await press(page, "3", 1700); // tilts the plane and stacks the pages
-  await moveTo(page, thumb(page, "附錄（書面，會上不念），第 1 張"), { steps: 36, rest: 1000 });
-  await moveTo(page, thumb(page, "三、翻頁怎麼運作，第 4 張"), { steps: 36, rest: 900 });
-  await click(page, thumb(page, "三、翻頁怎麼運作，第 4 張"), { rest: 200 }); // a slide still opens from 3D
+  await press(page, "3", 1800); // the depth desk: one row per block, the current one in front, the rest behind
+  await press(page, "ArrowDown", 1200); // the next row comes to the front
+  await press(page, "ArrowDown", 1200);
+  const fourth = page.locator(".ct-tile").nth(4).locator(".ct-tt");
+  await click(page, fourth, { steps: 36, rest: 600, scroll: false }); // a click on a row behind brings it forward
+  await pause(1300);
+  await click(page, thumb(page, "四、在網站上使用，第 1 張"), { rest: 300, scroll: false }); // a click in front opens
   await idle(page);
   await pause(1000);
-  await press(page, "Escape", 1300); // and the outline comes back in 3D
+  const hidden = await page.locator("[data-ct-current] [data-ct-step]:not([data-ct-on])").count();
+  for (let i = 0; i < hidden; i++) await press(page, "ArrowRight", 500);
+  await press(page, "ArrowRight", 2200); // the next block: the camera moves forward one row on the way
+  await idle(page);
+  await pause(600);
+  await press(page, "Escape", 1500); // and the outline comes back on the desk, with the new block in front
+  await press(page, "Home", 1500);
   await click(page, page.getByRole("button", { name: "3D" }), { rest: 250 });
   await idle(page);
   await pause(1100);
@@ -217,13 +227,33 @@ const clips = {
 
 /** Stills: [viewport, scheme, query, mode, what to do before the shot]. */
 const stills = {
-  overview: { viewport: WIDE, scheme: "dark", query: "?view=deck", mode: "overview", prepare: async () => {} },
+  // The outline after the first slides were shown: they are faded, the current one is ringed.
+  overview: {
+    viewport: WIDE,
+    scheme: "dark",
+    query: "?view=deck&at=1.1",
+    mode: "stage",
+    prepare: async page => {
+      for (let i = 0; i < 12; i++) {
+        await page.keyboard.press("ArrowRight");
+        await pause(450);
+        await idle(page);
+      }
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(() => window.contourDemo.deck.state.mode === "overview");
+      await pause(900);
+    },
+  },
+  // The depth desk with the ring in its front row: back from 一.4, the opening row already passed.
   "overview-3d": {
     viewport: WIDE,
     scheme: "dark",
-    query: "?view=deck",
-    mode: "overview",
+    query: "?view=deck&at=2.4",
+    mode: "stage",
     prepare: async page => {
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(() => window.contourDemo.deck.state.mode === "overview");
+      await idle(page);
       await page.keyboard.press("3");
       await page.waitForFunction(() => document.querySelector(".ct-app")?.hasAttribute("data-ct-3d"));
       await pause(1500);

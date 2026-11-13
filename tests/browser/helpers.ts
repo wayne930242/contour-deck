@@ -136,3 +136,28 @@ export async function revealWithArrows(page: Page) {
   const hidden = await page.locator("[data-ct-current] [data-ct-step]:not([data-ct-on])").count();
   for (let i = 0; i < hidden; i++) await page.keyboard.press("ArrowRight");
 }
+
+/** Replaces the demo deck with `count` generated blocks (block b has 1 + 7b mod 9 slides of 1 to 3 pages) and opens it. */
+export async function openGenerated(page: Page, count: number, options: object = {}) {
+  await page.goto(DEMO);
+  await page.evaluate(
+    ([count, options]) => {
+      const root = document.querySelector<HTMLElement>("[data-ct-deck]")!;
+      const pages = (b: number, s: number) =>
+        Array.from({ length: 1 + (s % 3) }, (_, p) => `<div data-ct-page><h2>${b + 1}.${s + 1}.${p + 1}</h2><p>text</p></div>`).join("");
+      const slides = (b: number) => Array.from({ length: 1 + ((b * 7) % 9) }, (_, s) => `<section data-ct-slide data-title="${b + 1}.${s + 1}">${pages(b, s)}</section>`).join("");
+      root.innerHTML = Array.from({ length: count }, (_, b) => `<section data-ct-block data-title="Block ${b + 1}">${slides(b)}</section>`).join("");
+      window.contourDemo.open(options);
+    },
+    [count, options] as const
+  );
+}
+
+/** The depth desk: the title of the row in front, and the 3D matrix of each row. */
+export const frontRow = (page: Page) => page.locator(".ct-tile[data-ct-front] .ct-tt").textContent();
+export function rowMatrix(page: Page, index: number) {
+  return page.locator(".ct-tile").nth(index).evaluate(el => {
+    const m = new DOMMatrix(getComputedStyle(el).transform);
+    return { m11: m.m11, m12: m.m12, m21: m.m21, m22: m.m22, m13: m.m13, m23: m.m23, m43: m.m43 };
+  });
+}

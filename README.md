@@ -23,15 +23,15 @@ The design is in [docs/DESIGN.md](docs/DESIGN.md) (Traditional Chinese); the HTM
 
 | | |
 | --- | --- |
-| ![跨區塊移動：翻到區塊盡頭時拉遠再推進，位置列的圓點直接飛到另一個區塊](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/move.gif) | ![3D 結構：輪廓傾斜、頁疊成層，仍可點進投影片](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/structure.gif) |
-| 跨區塊移動：拉遠再推進，位置列的圓點直接飛到別的區塊 | 3D 結構：按 3，頁疊成層 |
+| ![跨區塊移動：翻到區塊盡頭時拉遠再推進，位置列的圓點直接飛到另一個區塊](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/move.gif) | ![縱深桌面：每個區塊一列往後排，上下鍵或滾輪把下一列推到面前，仍可點進投影片](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/structure.gif) |
+| 跨區塊移動：拉遠再推進，位置列的圓點直接飛到別的區塊 | 3D 縱深桌面：按 3，整份簡報一個畫面，上下換列 |
 | ![步驟：表格一列一列出現，步驟用完才換頁](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/build.gif) | ![手機：講稿檢視、輪廓、舞台與往上滑的換頁](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/phone.gif) |
 | 步驟：空白鍵讓表格一列一列出現 | 手機：講稿檢視與往上滑換頁 |
 
 | | |
 | --- | --- |
-| ![輪廓：七個區塊的縮圖牆](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/overview.png) | ![3D 結構](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/overview-3d.png) |
-| 輪廓 | 3D 結構 |
+| ![輪廓：七個區塊的縮圖牆](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/overview.png) | ![3D 縱深桌面](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/overview-3d.png) |
+| 輪廓（講過的投影片變淡） | 3D 縱深桌面 |
 | ![舞台旁的講稿面板](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/notes.png) | ![淺色主題的舞台](https://raw.githubusercontent.com/wayne930242/contour-deck/main/docs/media/light.png) |
 | 講稿面板（按 N） | 淺色主題 |
 
@@ -100,7 +100,7 @@ A page that is not Astro gets the same behaviour from `mountAll()` in `contour-d
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `paging` | `"snap"` | `"snap"`: one wheel or trackpad gesture moves one stop. `"free"`: native scrolling with proximity snap. |
-| `overview` | `"flat"` | `"3d"` opens the outline as the tilted 3D structure. |
+| `overview` | `"flat"` | `"3d"` opens the outline as the depth desk: one row per block, the current one in front, the rest receding behind it. |
 | `linear.skip` | `["appendix"]` | Block kinds the linear advance and the arrow keys never enter. |
 | `view` | from the URL | `"deck"` or `"notes"` (the speaker notes as a scrolling script, for a phone). |
 | `at` | from the URL | Entry position, such as `"4.4.2"` or a slide id. |
@@ -202,12 +202,12 @@ The phone must be able to open the page's URL, so a deck on `localhost` needs a 
 | `Space`, `Enter`, `PageDown` | advance one step | open the current slide |
 | `Shift+Space`, `PageUp`, `Backspace` | back one step | |
 | `←` `→` | hide or show the current page's steps first, then the previous or next slide | move between thumbnails |
-| `↑` `↓` | previous, next stop | move between thumbnails |
-| `Home`, `End` | first, last slide of the block | |
+| `↑` `↓` | previous, next stop | move between thumbnails; in 3D, the previous or next row to the front |
+| `Home`, `End` | first, last slide of the block | in 3D, the first or last row to the front |
 | `N` | notes panel | |
 | `R` | remote panel (with the `remote` option) | remote panel |
 | `Esc`, `O` | outline | `Esc` leaves the deck (`exit`) |
-| `3` | | 3D structure |
+| `3` | | 3D: the depth desk |
 
 ### URL
 
@@ -220,6 +220,7 @@ The core removes both parameters in `destroy()` and leaves the others alone.
 
 - Set `--ct-bg`, `--ct-fg`, `--ct-accent`, `--ct-accent-fg`, `--ct-border`, `--ct-muted`, `--ct-mono`, and `--ct-measure` on `.ct-app`.
   By default the colours follow the site's `--background`, `--foreground`, `--accent`, `--accent-foreground`, `--border`, and `--muted-foreground`.
+- The depth desk (3D outline) reads `--ct-row-depth` (how far back each row stands, default `260px`) and `--ct-row-rise` (how much higher, default `26px`) on `.ct-app`.
 - A page keeps its content in a centred column of `--ct-measure` through its own side padding, so margins and widths the host sets on the content stay as written.
   The type of a page follows the size of the stage and never goes below `1rem`; sizes the host writes in `em` follow it, sizes in `rem` do not.
 - The open deck keeps its ancestors, so content styles that depend on them still apply.

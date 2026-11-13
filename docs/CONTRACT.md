@@ -146,7 +146,7 @@ The core does not read them, and a host that calls `createDeck` itself needs non
 | `data-ct-host` | the wrapper of one deck element | The element the host script mounts. The deck may sit at any depth inside it. |
 | `data-ct-doc-class` | the wrapper | Space-separated classes the wrapper carries only while the deck is closed; the script removes them on opening and restores them on closing. |
 | `data-ct-paging` | the wrapper | `snap` or `free`: the `paging` option of the core. |
-| `data-ct-overview` | the wrapper | `flat` or `3d`: the `overview` option of the core. |
+| `data-ct-overview` | the wrapper | `flat` or `3d`: the `overview` option of the core. `3d` opens the outline as the depth desk, one row per block. |
 | `data-ct-legacy` | the wrapper | Accept old reveal.js links: `?view=slides&slide=h.v` is rewritten to `?view=deck&at=…` through `data-legacy` and `data-legacy-v`. |
 | `data-ct-start` | any control in the page | A click opens the deck; with the value `notes`, its notes view. Inside a wrapper it opens that deck, elsewhere the first deck of the page. |
 | `data-ct-remote` | the wrapper | The deck has the remote button and the `R` key (`contour-deck/remote`, loaded on first use). |

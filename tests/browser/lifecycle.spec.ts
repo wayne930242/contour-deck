@@ -248,8 +248,18 @@ test.describe("with prefers-reduced-motion", () => {
     const started = Date.now();
     await page.keyboard.press("Escape");
     await expectAt(page, "overview 4.4.2 +0");
-    await page.keyboard.press("3");
-    await expect(page.locator(".ct-plane")).toHaveCSS("transform", /^matrix3d/);
+    // The depth desk and its rows change within the frame of the key press.
+    const rows = await page.evaluate(() => {
+      const key = (name: string) => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true }));
+      const front = () => document.querySelector(".ct-tile[data-ct-front] .ct-tt")?.textContent;
+      const cam = () => document.querySelector<HTMLElement>(".ct-plane")!.style.getPropertyValue("--ct-cam");
+      key("3");
+      const on = [front(), cam()];
+      key("ArrowDown");
+      return [...on, front(), cam()];
+    });
+    expect(rows).toEqual(["三、翻頁怎麼運作", "3", "四、在網站上使用", "4"]);
+    await page.keyboard.press("ArrowUp");
     await thumb(page, "三、翻頁怎麼運作，第 2 張").click();
     await expectAt(page, "stage 4.2.1 +0");
     expect(Date.now() - started).toBeLessThan(1500);
