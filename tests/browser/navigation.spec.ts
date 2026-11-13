@@ -127,11 +127,16 @@ test("inside the appendix the advance moves through its slides and stops at its 
   await expectAt(page, "stage 7.3.2 +0");
 });
 
-test("arrows, Home and End move between slides; a later slide waits unrevealed, an earlier one stays revealed", async ({ page }) => {
+test("arrows reveal and hide steps before they move between slides; Home and End move between slides; a later slide waits unrevealed, an earlier one stays revealed", async ({ page }) => {
   await page.goto(`${DEMO}?view=deck&at=2.2`);
   await expectAt(page, "stage 2.2.1 +0");
   await page.keyboard.press("Space");
   await expectAt(page, "stage 2.2.1 +1");
+  // The right arrow shows the remaining steps first, then changes slides.
+  await page.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 2.2.1 +2");
+  await page.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 2.2.1 +3");
   await page.keyboard.press("ArrowRight");
   await expectAt(page, "stage 2.3.1 +0");
   await idle(page);
@@ -139,6 +144,9 @@ test("arrows, Home and End move between slides; a later slide waits unrevealed, 
   // Coming back from the right, the slide is fully revealed.
   await expectAt(page, "stage 2.2.1 +3");
   await idle(page);
+  // The left arrow hides the shown steps first.
+  await page.keyboard.press("ArrowLeft");
+  await expectAt(page, "stage 2.2.1 +2");
   await page.keyboard.press("End");
   await expectAt(page, "stage 2.6.1 +0");
   await idle(page);
@@ -194,11 +202,14 @@ test("change listeners hear every move once, with the URL form of the position",
   await page.keyboard.press("Space");
   await expectAt(page, "stage 2.2.1 +2");
   await page.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 2.2.1 +3");
+  await page.keyboard.press("ArrowRight");
   await expectAt(page, "stage 2.3.1 +0");
   await idle(page);
   expect(await page.evaluate(() => (window as unknown as { log: string[] }).log)).toEqual([
     "stage 2.2.1 +1",
     "stage 2.2.1 +2",
+    "stage 2.2.1 +3",
     "stage 2.3.1 +0",
   ]);
 });

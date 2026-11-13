@@ -304,6 +304,15 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     render();
   }
 
+  /** The arrow keys: reveal or hide the current page's steps first, then move to the next or previous slide. */
+  function stepOrSlide(direction: 1 | -1) {
+    readScroll();
+    const steps = pageAt().steps;
+    const pending = direction > 0 ? steps.some(item => !item.hasAttribute(ON)) : steps.some(item => item.hasAttribute(ON));
+    if (pending) return direction > 0 ? next() : prev();
+    slideBy(direction);
+  }
+
   function prev() {
     if (busy || mode !== "stage") return;
     readScroll();
@@ -516,8 +525,8 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
           PageDown: next,
           PageUp: prev,
           Backspace: prev,
-          ArrowRight: () => slideBy(1),
-          ArrowLeft: () => slideBy(-1),
+          ArrowRight: () => stepOrSlide(1),
+          ArrowLeft: () => stepOrSlide(-1),
           ArrowDown: () => stepV(1),
           ArrowUp: () => stepV(-1),
           Escape: toOverview,

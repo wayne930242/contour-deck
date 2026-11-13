@@ -130,3 +130,9 @@ export function watchTransition(page: Page, key: string): Promise<{ elapsed: num
     key
   );
 }
+
+/** Presses the right arrow until every step of the current page is shown: the arrow reveals steps before it changes slides. */
+export async function revealWithArrows(page: Page) {
+  const hidden = await page.locator("[data-ct-current] [data-ct-step]:not([data-ct-on])").count();
+  for (let i = 0; i < hidden; i++) await page.keyboard.press("ArrowRight");
+}

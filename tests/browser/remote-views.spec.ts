@@ -30,7 +30,13 @@ test("the presenter window follows the deck over BroadcastChannel, without a rel
   await expect(position).toHaveText("一 · 2/6 · 要點 1/3");
   await expect(now.locator(".ct-pv [data-ct-step][data-ct-on]")).toHaveCount(1);
 
-  // The window's own keys and buttons move the deck.
+  // The window's own keys and buttons move the deck; its arrows show the remaining steps before they change slides.
+  await presenter.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 2.2.1 +2");
+  await expect(position).toHaveText("一 · 2/6 · 要點 2/3");
+  await presenter.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 2.2.1 +3");
+  await expect(position).toHaveText("一 · 2/6 · 要點 3/3");
   await presenter.keyboard.press("ArrowRight");
   await expectAt(page, "stage 2.3.1 +0");
   await idle(page);

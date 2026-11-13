@@ -1,7 +1,7 @@
 /** Document and deck, deep links, page events, reduced motion, file://, and free paging. */
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, test } from "./fixtures.js";
-import { DEMO, expectAt, idle, slideBox, thumb, watchTransition, where } from "./helpers.js";
+import { DEMO, expectAt, idle, revealWithArrows, slideBox, thumb, watchTransition, where } from "./helpers.js";
 
 const RUNTIME = "[data-ct-on],[data-ct-active],[data-ct-current],[data-ct-open]";
 
@@ -149,6 +149,7 @@ test("the URL follows the position", async ({ page }) => {
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/view=deck&at=4\.4\.2$/);
   await idle(page);
+  await revealWithArrows(page);
   await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/view=deck&at=4\.5\.1$/);
   await idle(page);
@@ -227,6 +228,7 @@ test.describe("with prefers-reduced-motion", () => {
     await page.goto(`${DEMO}?view=deck&at=4.6`);
     await expectAt(page, "stage 4.6.1 +0");
     expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+    await revealWithArrows(page);
     const { elapsed, animations } = await watchTransition(page, "ArrowRight");
     expect(animations).toEqual([140]);
     expect(elapsed).toBeLessThan(700);
@@ -263,6 +265,7 @@ test("the demo opens and advances straight from the file system", async ({ page 
   await expectAt(page, "stage 2.2.1 +0");
   await page.keyboard.press("Space");
   await expectAt(page, "stage 2.2.1 +1");
+  await revealWithArrows(page);
   await page.keyboard.press("ArrowRight");
   await expectAt(page, "stage 2.3.1 +0");
 

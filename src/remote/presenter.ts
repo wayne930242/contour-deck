@@ -28,6 +28,14 @@ const KEYS: Record<string, Command> = {
   o: "overview",
 };
 
+/** The arrow keys reveal or hide the current page's steps before they move to another slide, as on the deck. */
+function arrowStep(key: string, state: { mode: string; step: number; steps: number } | null): Command | undefined {
+  if (!state || state.mode !== "stage") return undefined;
+  if (key === "ArrowRight" && state.step < state.steps) return "next";
+  if (key === "ArrowLeft" && state.step > 0) return "prev";
+  return undefined;
+}
+
 export function presenterView(root: HTMLElement, options: RemoteViewOptions = {}): RemoteView {
   injectStyle(options.nonce);
   const labels = { ...defaultRemoteLabels, ...options.labels };
@@ -101,7 +109,7 @@ export function presenterView(root: HTMLElement, options: RemoteViewOptions = {}
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
       const onButton = !!(event.target as Element).closest?.("button,a");
       if (onButton && (key === " " || key === "Enter")) return;
-      const command = key === " " && event.shiftKey ? "prev" : KEYS[key];
+      const command = key === " " && event.shiftKey ? "prev" : arrowStep(key, guest.state) ?? KEYS[key];
       if (!command) return;
       event.preventDefault();
       guest.command(command);

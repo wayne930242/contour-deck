@@ -116,7 +116,7 @@ deck.prev();
 deck.open("4.2");       // put a block on the stage
 deck.go("4.4.2");       // or deck.go("slide-id")
 deck.overview();        // back to the outline
-deck.slideBy(1);        // the next slide, as the right arrow key; -1 for the one before
+deck.slideBy(1);        // the next slide, as the right arrow key once the page's steps are shown; -1 for the one before
 deck.pageBy(1);         // one stop down inside the slide, as the down arrow key
 deck.state;             // { mode, block, slide, page, step }; ordinals are 1-based
 deck.on("change", ({ mode, at, step }) => {});
@@ -201,7 +201,7 @@ The phone must be able to open the page's URL, so a deck on `localhost` needs a 
 | --- | --- | --- |
 | `Space`, `Enter`, `PageDown` | advance one step | open the current slide |
 | `Shift+Space`, `PageUp`, `Backspace` | back one step | |
-| `←` `→` | previous, next slide | move between thumbnails |
+| `←` `→` | hide or show the current page's steps first, then the previous or next slide | move between thumbnails |
 | `↑` `↓` | previous, next stop | move between thumbnails |
 | `Home`, `End` | first, last slide of the block | |
 | `N` | notes panel | |
