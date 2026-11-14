@@ -21,6 +21,13 @@ const seconds = (value: string | undefined): number => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
+/** A loop that starts at or past the end of the video cannot play: it falls back to the whole video. */
+function pastEnd(start: number, duration: number | undefined, what: string): boolean {
+  if (!start || !duration || !Number.isFinite(duration) || start < duration) return false;
+  console.warn(`contour-deck: ::background start=${start} is at or past the end of the ${what} (${duration} s); playing it from 0`);
+  return true;
+}
+
 function playVideo(box: HTMLElement, src: string, start: number, end: number): Mounted {
   const video = document.createElement("video");
   video.className = MEDIA;
@@ -39,6 +46,7 @@ function playVideo(box: HTMLElement, src: string, start: number, end: number): M
     play();
   };
   video.addEventListener("loadedmetadata", () => {
+    if (pastEnd(start, video.duration, "video")) start = end = 0;
     if (start) video.currentTime = start;
   });
   video.addEventListener("playing", () => video.setAttribute(PLAYING, ""));
@@ -144,6 +152,12 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
         reveal = window.setTimeout(() => frame.setAttribute(PLAYING, ""), BEZEL_MS);
       }
       if (state === 0) restart();
+      const duration = typeof info === "object" ? (info as { duration?: number } | null)?.duration : undefined;
+      if (pastEnd(start, duration, "YouTube video")) {
+        start = end = 0;
+        seeked = -Infinity;
+        restart();
+      }
       const time = typeof info === "object" ? info?.currentTime : undefined;
       if (end && typeof time === "number" && time >= end) restart();
     },

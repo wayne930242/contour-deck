@@ -155,13 +155,17 @@
   --foreground: var(--ct-fg); --muted-foreground: var(--ct-muted); --border: var(--ct-border);
   position: relative; isolation: isolate; color-scheme: dark; color: var(--ct-fg);
 }
-.ct-app .ct-stage [data-ct-background] { display: block; position: absolute; inset: 0; z-index: -1; margin: 0; overflow: hidden; background: #000; pointer-events: none; container-type: size; }
+/* The box spans the whole page; its media and credit are sticky, so on a page taller than the stage they stay on screen
+   while the slide scrolls. cqh/cqw are the stage's: the box itself is no container, and overflow: clip keeps it from
+   becoming the scroll container its sticky children would stick to. */
+.ct-app .ct-stage [data-ct-background] { display: flex; flex-direction: column; position: absolute; inset: 0; z-index: -1; margin: 0; overflow: clip; background: #000; pointer-events: none; }
 .ct-app .ct-stage [data-ct-background]::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / var(--ct-dim, .5)); }
-.ct-app .ct-stage [data-ct-background] > :is(img, video) { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; margin: 0; aspect-ratio: auto; object-fit: cover; object-position: var(--ct-position, center); transition: opacity .6s var(--ct-ease); }
+.ct-app .ct-stage [data-ct-background] > :is(img, video) { order: -1; flex: none; position: sticky; top: 0; display: block; width: 100%; height: 100cqh; max-width: none; margin: 0 0 -100cqh; aspect-ratio: auto; object-fit: cover; object-position: var(--ct-position, center); transition: opacity .6s var(--ct-ease); }
 /* YouTube: a 16:9 frame scaled past cover, so the title bar and the logo stay outside the stage */
-.ct-app .ct-stage [data-ct-background] > iframe { position: absolute; left: 50%; top: 50%; width: max(100cqw, 100cqh * 16 / 9); height: max(100cqh, 100cqw * 9 / 16); border: 0; transform: translate(-50%, -50%) scale(1.35); pointer-events: none; transition: opacity .6s var(--ct-ease); }
+.ct-app .ct-stage [data-ct-background] > iframe { --w: max(100cqw, 100cqh * 16 / 9); --h: max(100cqh, 100cqw * 9 / 16); order: -1; flex: none; align-self: flex-start; position: sticky; top: 0; display: block; width: var(--w); height: var(--h); margin: 0 0 calc(-1 * var(--h)) 50%; border: 0; transform: translate(-50%, calc(50cqh - 50%)) scale(1.35); pointer-events: none; transition: opacity .6s var(--ct-ease); }
 .ct-app .ct-stage [data-ct-background] > .ct-bgm:not([data-ct-playing]) { opacity: 0; }
-.ct-app .ct-stage [data-ct-credit] { position: absolute; left: 1rem; bottom: .7rem; z-index: 1; max-width: 60%; margin: 0; font: 400 clamp(.6rem, 1.1cqw, .8rem)/1.3 system-ui, sans-serif; color: rgb(255 255 255 / .72); text-align: left; text-shadow: 0 1px 2px rgb(0 0 0 / .6); opacity: 1; }
+/* The credit stands at the bottom of the page and sticks to the bottom of the stage while a tall page scrolls. */
+.ct-app .ct-stage [data-ct-credit] { position: sticky; bottom: .7rem; z-index: 1; align-self: flex-start; max-width: 60%; margin: auto 0 .7rem 1rem; font: 400 clamp(.6rem, 1.1cqw, .8rem)/1.3 system-ui, sans-serif; color: rgb(255 255 255 / .72); text-align: left; text-shadow: 0 1px 2px rgb(0 0 0 / .6); opacity: 1; }
 .ct-app .ct-stage [data-ct-background]:has(> .ct-bgm[data-ct-playing]) > img { opacity: 0; }
 
 .ct-pager { display: flex; flex-direction: column; gap: 5px; position: absolute; right: .55rem; top: 50%; transform: translateY(-50%); z-index: 4; }

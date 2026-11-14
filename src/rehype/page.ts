@@ -85,6 +85,9 @@ export function buildPage(children: HastNode[], file: DeckFile): Element {
   const notes: Element[] = [];
   const backgrounds: Element[] = [];
   const rest = take(take(children, isNotes, notes), isBackground, backgrounds);
+  const hidden: Element[] = [];
+  take(notes, isBackground, hidden);
+  if (hidden.length) file.fail("::background inside :::summary: write it outside the notes, on the page", hidden[0], ORIGIN);
   if (backgrounds.length > 1) file.fail("a page holds two ::background directives", backgrounds[1], ORIGIN);
   const content = applyBuilds(rest).filter(node => !isBlank(node));
   staggerIndex(content);

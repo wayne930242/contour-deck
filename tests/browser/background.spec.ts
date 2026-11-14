@@ -43,7 +43,7 @@ const media = (page: import("@playwright/test").Page) => page.locator("[data-ct-
 
 test("closed, the deck shows each background's still as a picture and plays nothing", async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator("[data-ct-background] > img")).toHaveCount(3);
+  await expect(page.locator("[data-ct-background] > img")).toHaveCount(4);
   await expect(page.locator("[data-ct-background] > img").first()).toBeVisible();
   await expect(page.locator("video, iframe")).toHaveCount(0);
 });
@@ -123,6 +123,55 @@ test("YouTube mounts a no-cookie embed only for its page and loops it from start
   await page.keyboard.press("ArrowLeft");
   await expectAt(page, "stage 1.2.1 +0");
   await expect(page.locator("iframe")).toHaveCount(0);
+});
+
+test("on a page taller than the stage the media and the credit stay on screen while it scrolls", async ({ page }) => {
+  await page.goto(`${DEMO}?view=deck&at=1.4`);
+  await expectAt(page, "stage 1.4.1 +0");
+  const stage = (await page.locator(".ct-stage").boundingBox())!;
+  const slide = page.locator("#tall");
+  expect(await slide.evaluate(el => el.scrollHeight > el.clientHeight * 1.5)).toBe(true);
+  for (const where of ["top", "middle", "bottom"]) {
+    await slide.evaluate((el, at) => {
+      el.style.scrollSnapType = "none";
+      el.scrollTop = at === "top" ? 0 : at === "middle" ? (el.scrollHeight - el.clientHeight) / 2 : el.scrollHeight;
+    }, where);
+    await page.waitForTimeout(100);
+    const still = (await page.locator("#tall [data-ct-background] > img").boundingBox())!;
+    expect(Math.abs(still.y - stage.y), where).toBeLessThan(3);
+    expect(Math.abs(still.height - (stage.height - 2)), where).toBeLessThan(3);
+    const credit = (await page.locator("#tall [data-ct-credit]").boundingBox())!;
+    expect(credit.y + credit.height, where).toBeLessThanOrEqual(stage.y + stage.height);
+    expect(credit.y + credit.height, where).toBeGreaterThan(stage.y + stage.height - 40);
+  }
+  const video = (await page.locator("#tall video.ct-bgm").boundingBox())!;
+  expect(Math.abs(video.y - stage.y)).toBeLessThan(3);
+});
+
+test("a video whose start is past its end plays from 0 instead of seeking forever", async ({ page }) => {
+  await page.goto(DEMO);
+  await page.evaluate(() => {
+    const box = document.querySelector<HTMLElement>("#video [data-ct-background]")!;
+    box.dataset.start = "10";
+    delete box.dataset.end;
+    window.contourDemo.open({ at: "1.2" });
+  });
+  await expectAt(page, "stage 1.2.1 +0");
+  const video = page.locator("#video video.ct-bgm");
+  await expect(video).toHaveAttribute("data-ct-playing", "", { timeout: 8000 });
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 8000 }).toBeGreaterThan(1);
+  expect(await video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeLessThan(6);
+});
+
+test("a YouTube start past the video's end loops from 0", async ({ page }) => {
+  await page.route("https://www.youtube-nocookie.com/**", route =>
+    route.fulfill({ status: 200, contentType: "text/html", body: PLAYER.replace('{ event: "onStateChange", info: 1 }', '{ event: "infoDelivery", info: { duration: 20, playerState: 0 } }') })
+  );
+  await page.goto(`${DEMO}?view=deck&at=1.3`);
+  await expectAt(page, "stage 1.3.1 +0");
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { stubSeen: { func?: string; args?: unknown[] }[] }).stubSeen))
+    .toContainEqual(expect.objectContaining({ func: "seekTo", args: [0, true] }));
 });
 
 test("with reduced motion the poster stays and nothing plays", async ({ page }) => {

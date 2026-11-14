@@ -55,9 +55,12 @@ Footnotes and MDX ESM nodes stay outside the deck element.
 | `credit` | Plain text (Markdown is not read) shown small in the bottom left corner of the stage over the scrim, and under the picture in the document. For attribution such as CC BY-SA. |
 
 One background per page; it applies to the page it is written on, wherever in the page.
-A source missing or doubled, an empty value, a value out of range, `poster`/`start`/`end` on an image, or an unknown attribute is an error.
+A source missing or doubled, an empty value, a value out of range, `poster`/`start`/`end` on an image, an unknown attribute, or a `::background` inside `:::summary` is an error.
+A `start` at or past the end of the video is found only when it plays: the video then plays whole from 0, with a console warning.
 
-On the stage the media fills the page behind its content (`object-fit: cover`), the scrim sits between them, and the page's text turns light in both themes:
+On the stage the media fills the stage behind the page's content (`object-fit: cover`), the scrim sits between them, and the page's text turns light in both themes.
+On a page taller than the stage the media and the credit stay put while the page scrolls under them.
+The colours:
 the page sets `--ct-fg`, `--ct-muted`, `--ct-border` and the site tokens `--foreground`, `--muted-foreground`, `--border` to `--ct-media-fg`, `--ct-media-muted`, `--ct-media-border` (defaults `#f2f2ed`, `#c9c9c3`, white at 32 %).
 A host whose content uses other colour tokens restyles `.ct-stage [data-ct-page]:has(> [data-ct-background])`.
 

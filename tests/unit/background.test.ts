@@ -82,6 +82,7 @@ describe("::background", () => {
     ["an empty credit", `::background{image="/a.jpg" credit=" "}`, "credit is empty"],
     ["an unknown attribute", `::background{image="/a.jpg" muted}`, 'background has no attribute "muted"'],
     ["the container form", `:::background{image="/a.jpg"}\n:::`, "background is a leaf directive"],
+    ["one inside the notes", `內文\n\n:::summary\n講稿\n\n::background{image="/a.jpg"}\n:::`, "::background inside :::summary"],
     ["two on one page", `::background{image="/a.jpg"}\n\n::background{image="/b.jpg"}\n\n內文`, "a page holds two ::background directives"],
   ])("fails fast on %s", (_name, markdown, message) => {
     expect(() => toHast(markdown)).toThrow(message);
