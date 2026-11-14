@@ -67,7 +67,7 @@ A guest that is not granted gets `state` messages only if the host chooses (defa
 
 | Message | Fields |
 | --- | --- |
-| `state` | `mode` (`overview` \| `stage`), `at` (`b.s.p`, 1-based), `step`, `steps`, `elapsed` (s), `total` (s or `null`), `blockElapsed` (s), `blockMinutes` (or `null`), `ratio` (optional: width over height of the stage) |
+| `state` | `mode` (`overview` \| `stage`), `at` (`b.s.p`, 1-based), `step`, `steps`, `elapsed` (s), `total` (s or `null`), `blockElapsed` (s), `blockMinutes` (or `null`), `ratio` (optional: width over height of the stage), `width` (optional: the stage's width in CSS px), `scroll` (optional: CSS px the stage is scrolled below the top of the current page) |
 
 Sent on every position change and every 15 s. No text of the page crosses the relay: the phone has the same page and reads the notes and the block title from its own DOM, at the position `at` names.
 
