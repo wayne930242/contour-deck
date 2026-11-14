@@ -81,11 +81,11 @@ export function presenterView(root: HTMLElement, options: RemoteViewOptions = {}
     const overview = state.mode === "overview";
     position.textContent = (overview ? `${labels.inOverview} · ` : "") + positionLabel(outline, pos, state);
     const page = pageAt(outline, pos);
-    now.preview.show(page, state.step);
+    now.preview.show(page, state.step, { width: state.width, scroll: state.scroll });
     now.caption.textContent = outline.blocks[pos.b].slides[pos.s].title;
     const up = upNext(outline, pos, state.step);
     const kinds = { step: labels.nextStep, page: labels.nextPage, slide: labels.nextSlide, end: labels.theEnd };
-    coming.preview.show(up.kind === "end" ? null : pageAt(outline, up.pos), up.step);
+    coming.preview.show(up.kind === "end" ? null : pageAt(outline, up.pos), up.step, { width: state.width });
     coming.caption.textContent = up.kind === "end" ? kinds.end : `${kinds[up.kind]}｜${up.text}`;
     if (state.at === drawnPage) return;
     drawnPage = state.at;

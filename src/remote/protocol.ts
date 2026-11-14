@@ -25,6 +25,10 @@ export interface StateMessage {
   blockMinutes: number | null;
   /** Width over height of the stage, so a phone draws on a pad of the same shape. Not in protocol v1; optional. */
   ratio?: number;
+  /** Width of the stage in CSS pixels, so a preview lays the page out as the stage does. Optional. */
+  width?: number;
+  /** How far the stage is scrolled below the top of the current page, in CSS pixels of the stage. Optional. */
+  scroll?: number;
 }
 
 /** What the relay itself sends. */
@@ -120,6 +124,8 @@ export function stateMessage(value: Fields): StateMessage | null {
     blockElapsed: number(value.blockElapsed),
     blockMinutes: finite(value.blockMinutes) ? value.blockMinutes : null,
     ...(finite(value.ratio) && value.ratio > 0 ? { ratio: value.ratio } : {}),
+    ...(finite(value.width) && value.width >= 100 && value.width <= 20000 ? { width: Math.round(value.width) } : {}),
+    ...(finite(value.scroll) && value.scroll >= 0 && value.scroll <= 1e6 ? { scroll: Math.round(value.scroll) } : {}),
   };
 }
 

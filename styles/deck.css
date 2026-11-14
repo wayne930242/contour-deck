@@ -199,8 +199,8 @@
   .ct-rc i, .ct-rm { width: 6px; height: 4px; }
   .ct-app[data-ct-panel] .ct-stage { right: 0; bottom: 42%; }
   .ct-notes { top: 58%; }
-  /* room for the step buttons under the last line */
-  .ct-app .ct-stage [data-ct-page] { padding-bottom: 4.2rem; }
+  /* room for the step buttons under the last line; not on a remote's copy of the page, which follows the stage's layout */
+  .ct-app .ct-stage:not(.ct-pv > *) [data-ct-page] { padding-bottom: 4.2rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

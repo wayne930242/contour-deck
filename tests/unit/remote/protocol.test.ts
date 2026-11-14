@@ -69,6 +69,10 @@ describe("stateMessage", () => {
     // No text of the post rides on a state: a `block` from an older host is not read.
     expect(stateMessage({ ...state, block: "三" })).toEqual(state);
     expect(stateMessage({ ...state, ratio: 1.6 })).toEqual({ ...state, ratio: 1.6 });
+    // The stage's width and scroll, for a preview laid out and scrolled as the stage; nonsense is dropped.
+    expect(stateMessage({ ...state, width: 1698.4, scroll: 1353 })).toEqual({ ...state, width: 1698, scroll: 1353 });
+    expect(stateMessage({ ...state, width: 12, scroll: -4 })).toEqual(state);
+    expect(stateMessage({ ...state, width: "1700", scroll: "9" })).toEqual(state);
     expect(stateMessage({ t: "state", at: "1.1.1", mode: "notes", step: "x", total: "12", ratio: -1 })).toEqual({
       t: "state",
       mode: "stage",

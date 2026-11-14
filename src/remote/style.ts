@@ -38,9 +38,9 @@ const css = `
 /* A touch screen keeps :hover on the last button tapped; there the tint would stay on it. */
 @media (hover: none) { .ct-app .ct-btn:not([data-ct-primary], [aria-pressed="true"]):hover { background: var(--ct-bg); } }
 
-/* ---- a page of the deck drawn small: the same rules as the stage, on a 1280 px wide sheet scaled down ---- */
+/* ---- a page of the deck drawn small: the same rules as the stage, on a sheet as wide as the stage (1280 px when unknown), scaled down ---- */
 .ct-pv { position: relative; overflow: hidden; aspect-ratio: var(--ct-ratio, 16 / 9); background: var(--ct-bg); border: 1px solid var(--ct-border); }
-.ct-app .ct-pv > .ct-stage { inset: auto; left: 0; top: 0; width: 1280px; height: calc(1280px / var(--ct-ratio, 16 / 9)); transform: scale(var(--ct-k, .25)); transform-origin: 0 0; border: 0; z-index: 0; visibility: visible; pointer-events: none; }
+.ct-app .ct-pv > .ct-stage { inset: auto; left: 0; top: 0; width: var(--ct-sheet, 1280px); height: calc(var(--ct-sheet, 1280px) / var(--ct-ratio, 16 / 9)); transform: scale(var(--ct-k, .25)); transform-origin: 0 0; border: 0; z-index: 0; visibility: visible; pointer-events: none; }
 .ct-pvw { height: 100%; overflow: hidden; }
 /* The copy shows the page as it stands, revealed: a host's entrance motion would hold it at its first frame (often transparent), since the copy is never the current page. */
 .ct-pv.ct-pv > .ct-stage *, .ct-pv.ct-pv > .ct-stage *::before, .ct-pv.ct-pv > .ct-stage *::after { animation: none !important; transition: none !important; }

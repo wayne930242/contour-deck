@@ -69,29 +69,43 @@ export function upNext(outline: Outline, pos: Pos, step: number): UpNext {
 
 export interface Preview {
   el: HTMLElement;
-  /** Draws a page with its first `steps` steps revealed; `null` empties the sheet. */
-  show(page: PageNode | null, steps: number): void;
+  /**
+   * Draws a page with its first `steps` steps revealed; `null` empties the sheet. `view` is the stage's width
+   * and scroll from the state: with them the copy is laid out and scrolled as the stage shows it.
+   */
+  show(page: PageNode | null, steps: number, view?: { width?: number; scroll?: number }): void;
   destroy(): void;
 }
 
-/** Width of the sheet a page is laid out on before it is scaled to the box. */
+/** Width of the sheet a page is laid out on before it is scaled to the box, when the state does not give the stage's. */
 const SHEET = 1280;
 
 /**
- * A page of this document drawn small: a copy laid out by the stage's own rules on a 1280 px wide sheet,
- * then scaled to the box. A guide, not a mirror: it does not know how far the real page is scrolled.
+ * A page of this document drawn small: a copy laid out by the stage's own rules on a sheet as wide as the
+ * stage (1280 px when unknown) and scrolled as far, then scaled to the box. A point on the box is the same
+ * point of the page on the stage, so the laser and the ink land where they were aimed.
  */
 export function createPreview(root: HTMLElement): Preview {
   const el = h("div", "ct-pv");
   const sheet = el.appendChild(h("div", "ct-stage", "", { "aria-hidden": "true" }));
   const wrap = sheet.appendChild(h("div", `ct-pvw ${root.className}`.trim()));
+  // The copy stands in a stand-in of the deck root, so a host's rules scoped to `[data-ct-deck]` lay it out as on the stage.
+  for (const { name, value } of Array.from(root.attributes)) if (name !== "id" && name !== "class") wrap.setAttribute(name, value);
   sheet.inert = true;
-  const observer = new ResizeObserver(() => el.style.setProperty("--ct-k", String(el.clientWidth / SHEET)));
+  let width = SHEET;
+  const fit = () => el.style.setProperty("--ct-k", String(el.clientWidth / width));
+  const observer = new ResizeObserver(fit);
   observer.observe(el);
   let drawn: PageNode | null = null;
   return {
     el,
-    show(page, steps) {
+    show(page, steps, view = {}) {
+      const wanted = view.width ?? SHEET;
+      if (wanted !== width) {
+        width = wanted;
+        el.style.setProperty("--ct-sheet", `${width}px`);
+        fit();
+      }
       if (page !== drawn) {
         drawn = page;
         const copy = page?.el.cloneNode(true) as HTMLElement | undefined;
@@ -102,6 +116,7 @@ export function createPreview(root: HTMLElement): Preview {
         wrap.replaceChildren(...(copy ? [copy] : []));
       }
       wrap.querySelectorAll("[data-ct-step]").forEach((node, i) => node.toggleAttribute("data-ct-on", i < steps));
+      wrap.scrollTop = view.scroll ?? 0;
     },
     destroy: () => observer.disconnect(),
   };

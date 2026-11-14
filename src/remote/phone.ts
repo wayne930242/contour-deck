@@ -246,7 +246,7 @@ export function remoteView(root: HTMLElement, options: RemoteViewOptions = {}): 
       }
     }
     if (pos) {
-      preview.show(pageAt(outline, pos), state.step);
+      preview.show(pageAt(outline, pos), state.step, { width: state.width, scroll: state.scroll });
       const up = upNext(outline, pos, state.step);
       const kinds = { step: labels.nextStep, page: labels.nextPage, slide: labels.nextSlide, end: labels.theEnd };
       // On the outline the step button opens the slide the deck is on.

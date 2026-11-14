@@ -75,7 +75,7 @@ test("pairing: the phone shows the code the deck shows, and allow gives it contr
   await expect(phone.locator(".ct-rmt-next")).toContainText("內容只存在一份");
   // Only position and timing crossed the relay: no notes, no slide text, not even the block title, which the phone read from its own page.
   const state = remote.relay.received(guest, "state")[0];
-  expect(Object.keys(state).sort()).toEqual(["at", "blockElapsed", "blockMinutes", "elapsed", "mode", "ratio", "step", "steps", "t", "to", "total"].sort());
+  expect(Object.keys(state).sort()).toEqual(["at", "blockElapsed", "blockMinutes", "elapsed", "mode", "ratio", "scroll", "step", "steps", "t", "to", "total", "width"].sort());
   expect(state).toMatchObject({ mode: "stage", at: "2.2.1", step: 0, steps: 3, elapsed: 0, total: 720, blockMinutes: 3 });
 });
 
@@ -380,6 +380,54 @@ test("the pointer tab shows the laser dot where the finger is on the pad", async
   // Past the edge of the pad the dot stops at the edge of the stage.
   await dragPad(phone, [[0.5, 0.5], [1.4, 0.5]], true);
   await expectLaser(page, 1, 0.5);
+  await phone.mouse.up();
+});
+
+test("a point on the pad is the same point of the page on the stage: laid out at the stage's width and scrolled as far", async ({ page, remote }) => {
+  // A stage wider than the 1280 px sheet the preview used to lay pages out on.
+  await page.setViewportSize({ width: 1700, height: 900 });
+  const phone = await remote.paired();
+  await phone.getByRole("button", { name: "紅點" }).click();
+  /** Where an element's centre sits on the stage, and where its copy's centre sits on the pad, as shares of each. */
+  const shares = async (selector: string) => {
+    const stage = (await page.locator(".ct-stage").boundingBox())!;
+    const real = (await page.locator(`[data-ct-current] ${selector}`).first().boundingBox())!;
+    const pad = (await phone.locator(".ct-rmt-pad").boundingBox())!;
+    const copy = (await phone.locator(`.ct-rmt-pad .ct-pv ${selector}`).first().boundingBox())!;
+    const at = (box: typeof real, frame: typeof stage) => [(box.x + box.width / 2 - frame.x) / frame.width, (box.y + box.height / 2 - frame.y) / frame.height];
+    return { stage: at(real, stage), pad: at(copy, pad) };
+  };
+  const expectSame = async (selector: string) => {
+    await expect
+      .poll(async () => {
+        const { stage, pad } = await shares(selector);
+        return Math.max(Math.abs(stage[0] - pad[0]), Math.abs(stage[1] - pad[1]));
+      })
+      .toBeLessThan(0.01);
+  };
+  await expect(phone.locator(".ct-rmt-pad .ct-pv h2")).toHaveText("三個設計原則");
+  await expectSame("h2");
+  await expectSame("li:last-child");
+
+  // A page taller than the stage, scrolled to its middle: the pad shows the same part of it.
+  const lengthen = (target: import("@playwright/test").Page) =>
+    target.evaluate(() => {
+      const next = document.querySelectorAll("[data-ct-block]")[1].querySelectorAll(":scope > [data-ct-slide]")[2].querySelector("[data-ct-page]")!;
+      for (let i = 0; i < 40; i++) next.insertAdjacentHTML("beforeend", `<p data-zz="${i}">第 ${i} 行，讓這一頁比舞台高。</p>`);
+    });
+  await lengthen(page);
+  await lengthen(phone);
+  await page.evaluate(() => window.contourDemo.deck!.go("2.3"));
+  await expectAt(page, "stage 2.3.1 +0");
+  await page.evaluate(() => {
+    const slide = document.querySelector("[data-ct-current]")!.parentElement!;
+    slide.style.scrollSnapType = "none";
+    slide.scrollTop = (slide.scrollHeight - slide.clientHeight) / 2;
+  });
+  await expect.poll(() => phone.locator(".ct-rmt-pad .ct-pvw").evaluate(el => el.scrollTop)).toBeGreaterThan(100);
+  await expectSame("[data-zz='20']");
+  await dragPad(phone, [[0.4, 0.5]], true);
+  await expectLaser(page, 0.4, 0.5);
   await phone.mouse.up();
 });
 

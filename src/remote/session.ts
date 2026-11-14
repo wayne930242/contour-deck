@@ -163,6 +163,9 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       blockElapsed: reading.blockElapsed,
       blockMinutes: current.minutes || null,
       ratio: Math.round((stage.clientWidth / (stage.clientHeight || 1)) * 1000) / 1000,
+      // The preview lays the page out at the stage's own width and shows it scrolled as far: a point on the phone is that point on the stage.
+      width: stage.clientWidth,
+      scroll: Math.max(0, Math.round(current.slides[slide - 1].el.scrollTop - current.slides[slide - 1].pages[page - 1].el.offsetTop)),
     };
   }
 
@@ -287,6 +290,19 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       refresh();
     }),
   ];
+  // Scrolling within a tall page changes no position, but the preview must follow it.
+  let scrollTimer = 0;
+  stage.addEventListener(
+    "scroll",
+    () => {
+      if (scrollTimer) return;
+      scrollTimer = window.setTimeout(() => {
+        scrollTimer = 0;
+        if (!closed && deck.state.mode === "stage") sendState();
+      }, 120);
+    },
+    { capture: true, passive: true }
+  );
   const interval = window.setInterval(() => {
     pairing.expire();
     if (++ticks % STATE_EVERY === 0) sendState();
