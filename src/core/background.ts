@@ -9,6 +9,8 @@
 /** The class of the media element the core adds, and the attribute it sets once playback has started. */
 export const MEDIA = "ct-bgm";
 const PLAYING = "data-ct-playing";
+/** How long YouTube's bezel stays after playback starts. */
+const BEZEL_MS = 3200;
 
 interface Mounted {
   stop(): void;
@@ -60,7 +62,11 @@ function playVideo(box: HTMLElement, src: string, start: number, end: number): M
 }
 
 /** The YouTube embed: no-cookie, muted, no controls, no keyboard; looped from `start` to `end` over postMessage. */
-export function youtubeUrl(id: string, start: number, end: number, origin: string): string {
+/**
+ * No `end` in the URL: the deck seeks back before the player reaches its ended state, which would show
+ * YouTube's pause bezel in the middle of the stage.
+ */
+export function youtubeUrl(id: string, start: number, origin: string): string {
   const params = new URLSearchParams({
     autoplay: "1",
     mute: "1",
@@ -74,7 +80,6 @@ export function youtubeUrl(id: string, start: number, end: number, origin: strin
     enablejsapi: "1",
   });
   if (start) params.set("start", String(Math.floor(start)));
-  if (end) params.set("end", String(Math.ceil(end)));
   if (/^https?:/.test(origin)) params.set("origin", origin);
   return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`;
 }
@@ -82,7 +87,7 @@ export function youtubeUrl(id: string, start: number, end: number, origin: strin
 function playYoutube(box: HTMLElement, id: string, start: number, end: number): Mounted {
   const frame = document.createElement("iframe");
   frame.className = MEDIA;
-  frame.src = youtubeUrl(id, start, end, location.origin);
+  frame.src = youtubeUrl(id, start, location.origin);
   frame.title = "";
   frame.allow = "autoplay; encrypted-media";
   frame.referrerPolicy = "strict-origin-when-cross-origin";
@@ -91,15 +96,29 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
   const abort = new AbortController();
   const post = (message: object) => frame.contentWindow?.postMessage(JSON.stringify(message), "*");
   const command = (func: string, args: unknown[] = []) => post({ event: "command", func, args });
+  /** When the last seek was sent: the messages after it still carry the old time for a moment. */
+  let seeked = -Infinity;
   const restart = () => {
+    if (performance.now() - seeked < 1000) return;
+    seeked = performance.now();
     command("seekTo", [start, true]);
     command("playVideo");
   };
+  // The player answers only once it is ready: ask until it does.
+  let heard = false;
+  let asking = 0;
+  const listen = () => {
+    post({ event: "listening", id: 1, channel: "widget" });
+    command("addEventListener", ["onStateChange"]);
+  };
+  // YouTube shows a pause bezel for the first seconds of playback: the still stays over it until they pass.
+  let reveal = 0;
   frame.addEventListener(
     "load",
     () => {
-      post({ event: "listening", id: 1, channel: "widget" });
-      command("addEventListener", ["onStateChange"]);
+      listen();
+      clearInterval(asking);
+      asking = window.setInterval(() => (heard ? clearInterval(asking) : listen()), 250);
     },
     { signal: abort.signal }
   );
@@ -113,6 +132,7 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
       } catch {
         return;
       }
+      heard = true;
       const info = data.info as { playerState?: number; currentTime?: number } | number | null | undefined;
       if (data.event === "onReady") {
         command("mute");
@@ -120,7 +140,9 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
       }
       const state = typeof info === "number" ? info : info?.playerState;
       // 1 playing, 0 ended (the embed's `end` stops it there).
-      if (state === 1) frame.setAttribute(PLAYING, "");
+      if (state === 1 && !reveal && !frame.hasAttribute(PLAYING)) {
+        reveal = window.setTimeout(() => frame.setAttribute(PLAYING, ""), BEZEL_MS);
+      }
       if (state === 0) restart();
       const time = typeof info === "object" ? info?.currentTime : undefined;
       if (end && typeof time === "number" && time >= end) restart();
@@ -131,6 +153,8 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
   return {
     stop() {
       abort.abort();
+      clearInterval(asking);
+      clearTimeout(reveal);
       frame.remove();
     },
   };

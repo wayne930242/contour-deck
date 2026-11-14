@@ -102,10 +102,13 @@ test("YouTube mounts a no-cookie embed only for its page and loops it from start
   await expect(frame).toHaveCount(1);
   const src = new URL((await frame.getAttribute("src"))!);
   expect(src.origin + src.pathname).toBe("https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ");
-  expect(Object.fromEntries(src.searchParams)).toMatchObject({ mute: "1", controls: "0", rel: "0", disablekb: "1", start: "30", end: "55" });
+  expect(Object.fromEntries(src.searchParams)).toMatchObject({ mute: "1", controls: "0", rel: "0", disablekb: "1", start: "30" });
+  expect(src.searchParams.has("end")).toBe(false);
   await expect(frame).toHaveCSS("pointer-events", "none");
   expect(await frame.getAttribute("tabindex")).toBe("-1");
-  await expect(frame).toHaveAttribute("data-ct-playing", "");
+  // The still stays over YouTube's bezel for the first seconds of playback.
+  await expect(page.locator("#youtube [data-ct-background] > img")).toHaveCSS("opacity", "1");
+  await expect(frame).toHaveAttribute("data-ct-playing", "", { timeout: 8000 });
   await expect(page.locator("#youtube [data-ct-background] > img")).toHaveCSS("opacity", "0");
   // Scaled past cover: wider and taller than the stage.
   const stage = (await page.locator(".ct-stage").boundingBox())!;

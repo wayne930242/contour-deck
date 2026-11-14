@@ -90,7 +90,7 @@ describe("::background", () => {
 
 describe("youtubeUrl", () => {
   it("embeds without cookies, muted, without controls, related videos, or keyboard", () => {
-    const url = new URL(youtubeUrl("dQw4w9WgXcQ", 30.5, 55.2, "https://wayneh.tw"));
+    const url = new URL(youtubeUrl("dQw4w9WgXcQ", 30.5, "https://wayneh.tw"));
     expect(url.origin + url.pathname).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
       autoplay: "1",
@@ -100,9 +100,10 @@ describe("youtubeUrl", () => {
       disablekb: "1",
       enablejsapi: "1",
       start: "30",
-      end: "56",
       origin: "https://wayneh.tw",
     });
-    expect(new URL(youtubeUrl("dQw4w9WgXcQ", 0, 0, "null")).searchParams.has("origin")).toBe(false);
+    // The deck loops before the end itself, so the player never shows its ended bezel.
+    expect(url.searchParams.has("end")).toBe(false);
+    expect(new URL(youtubeUrl("dQw4w9WgXcQ", 0, "null")).searchParams.has("origin")).toBe(false);
   });
 });

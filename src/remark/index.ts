@@ -15,7 +15,7 @@
  * not an empty box, and so is an unknown attribute.
  *
  * `::background` takes exactly one source, `image`, `video` (a file), or `youtube` (an id or a
- * watch, youtu.be, embed, or shorts URL, written out as the id), and `poster`, `start`, `end`,
+ * watch, youtu.be, embed, shorts, or live URL, written out as the id), and `poster`, `start`, `end`,
  * `dim`, `position`, `credit` (plain text, shown small in a bottom corner). The element holds the still (the image, else the poster) as an `<img>`;
  * the core plays the video over it on the stage.
  *

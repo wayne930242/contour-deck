@@ -63,7 +63,7 @@ A host whose content uses other colour tokens restyles `.ct-stage [data-ct-page]
 
 A video plays muted, without controls, only while its page is the current page of the stage; the core removes it when the page stops being current, so a hidden page never plays.
 The still fades out only once playback has actually started.
-YouTube plays from `youtube-nocookie.com`, muted, without controls, related videos, or keyboard, and takes no pointer; the frame is scaled past cover so the title bar and logo stay outside the stage.
+YouTube plays from `youtube-nocookie.com`, muted (the still stays over it for the first 3 seconds, while YouTube shows its pause bezel), without controls, related videos, or keyboard, and takes no pointer; the frame is scaled past cover so the title bar and logo stay outside the stage.
 The document, the presenter window, the phone remote, and the outline show the still only, and so does the stage under `prefers-reduced-motion: reduce`.
 
 ## Slides and pages
