@@ -57,7 +57,7 @@ A change to this file goes in its own commit whose message starts with `contract
 | block | `data-title` | yes | Block title as plain text, for example `三、翻頁怎麼運作`. A deck with one unnamed block uses the deck title. |
 | block | `data-short` | no | Label of at most 3 characters for the locator rail and thumbnail numbers, for example `三`. Default: the block's 1-based ordinal. |
 | block | `data-minutes` | no | Planned minutes, a positive number (`5`, `1.5`). Omit when unknown. |
-| block | `data-kind` | no | One token. The core knows `appendix`; any other value is carried but has no behaviour. |
+| block | `data-kind` | no | One token. The core knows `appendix`, `opening` (first block only) and `closing` (last block only); any other value is carried but has no behaviour. |
 | slide | `data-ct-slide` | yes | no value |
 | slide | `data-title` | yes | Slide title as plain text: its first heading, or a fallback the producer chooses. |
 | slide | `id` | yes | Unique in the document. The author's id when given, otherwise `s-<b>-<s>` with the 1-based block and slide ordinals. |
@@ -83,6 +83,7 @@ A change to this file goes in its own commit whose message starts with `contract
 - Without `::block`, a slide that opens with a kicker heading (`####`) starts a block whose title is the heading text.
 - With neither, the whole deck is one block.
 - `data-kind="appendix"` marks a block the linear advance never enters: it is reached from the outline, the locator rail, or a deep link.
+- `data-kind="opening"` on the first block: the deck opens on it, and past its last slide comes the outline. `data-kind="closing"` on the last block: the linear advance enters it past the talk's last slide. Neither is in the outline, the rail, or planned time; unlabelled blocks are numbered from the first block after an opening.
 
 ### Steps
 
