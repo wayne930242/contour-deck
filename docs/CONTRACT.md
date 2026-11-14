@@ -37,6 +37,7 @@ A change to this file goes in its own commit whose message starts with `contract
         content         any HTML
         [data-ct-step]  0 or more, anywhere inside the page content
         [data-ct-notes] 0 or more, element children of the page
+        [data-ct-background] 0 or 1, an element child of the page
 ```
 
 - Each level holds only the level below it: a deck has no element child other than blocks, a block none other than slides, a slide none other than pages.
@@ -67,6 +68,11 @@ A change to this file goes in its own commit whose message starts with `contract
 | step | `data-ct-step` | yes | no value |
 | step | `data-ms` | no | Reading time of the step, in whole milliseconds (autoplay). |
 | notes | `data-ct-notes` | yes | no value |
+| background | `data-ct-background` | yes | no value |
+| background | `data-video` | no | URL of a video file the core plays over the still on the stage. |
+| background | `data-youtube` | no | 11-character YouTube id the core embeds over the still on the stage. At most one of `data-video` and `data-youtube`. |
+| background | `data-start`, `data-end` | no | Seconds: the video loops from `data-start` (default 0) to `data-end` (default its end). |
+| background | `style` | no | `--ct-dim` (scrim opacity, 0 to 1, default 0.5) and `--ct-position` (object-position, default `center`). |
 | content | `data-ct-sk` | no | Thumbnail hint on an element child of a page: `text`, `list`, `table`, `grid`, `flow`, `nums`, `quote`, or `figure`. See [Thumbnails](#thumbnails). |
 
 `data-title`, `data-short`, `data-minutes`, `data-kind`, `data-legacy`, `data-legacy-v`, and `data-ms` have meaning only on the elements listed here.
@@ -91,9 +97,18 @@ A change to this file goes in its own commit whose message starts with `contract
 - A page with several notes elements reads them in document order.
 - The stylesheet hides notes in the document and on the stage; the notes panel and the notes view show their HTML.
 
+### Backgrounds
+
+- `::background` becomes `<div data-ct-background>` as the first element child of the page where it was written; a page has at most one.
+- Its children are the still, an `<img>` (the image, or the poster of a video), and optionally `<small data-ct-credit>` with plain-text attribution. A video without a poster has no `<img>`.
+- The document shows the still as a picture at the top of the page and the credit under it.
+- On the stage the background fills the page behind the content under a black scrim, and the page's text turns light.
+  The core adds the video (`<video class="ct-bgm">`) or the YouTube frame (`<iframe class="ct-bgm">`) only while the page is the current page, removes it when the page stops being current, and adds nothing under `prefers-reduced-motion: reduce`.
+- Thumbnails, the presenter window, and the phone remote show the still only.
+
 ### Thumbnails
 
-The outline draws a schematic of each slide's first page from the first two content elements (element children of the page that are not notes and not `h1`–`h6`).
+The outline draws a schematic of each slide's first page from the first two content elements (element children of the page that are not notes, not the background, and not `h1`–`h6`).
 The type of each comes from `data-ct-sk` when present, otherwise from the element itself:
 
 | Type | Detected without a hint |
@@ -116,6 +131,7 @@ The core removes all of them in `destroy()`.
 | --- | --- | --- |
 | `data-ct-on` | step | The step is revealed. |
 | `data-ct-active` | block | The block is the one on the stage. |
+| `data-ct-playing` | `.ct-bgm` | The background video has started playing; the stylesheet fades the still out. |
 | `data-ct-current` | page | The page is the current one on the stage. It replaces reveal.js `.present` as the hook for entrance animations (`--i`). |
 | `data-ct-open` | `<html>` | A deck is open. The stylesheet uses it to stop the document behind from scrolling. |
 | `class="ct-…"` | elements the core creates | The app shell around the deck. The core adds no class to contract elements. |
