@@ -23,9 +23,14 @@ export interface Overview {
   rowOf(el: Element): number;
   /** Scroll distance of one row on the depth desk. */
   readonly step: number;
+  /** The flat outline: grows to the largest scale (up to `MAX_FIT`) at which every block fits without scrolling. */
+  fit(): void;
 }
 
 const FIGURE = "figure,img,picture,svg,canvas,video,iframe";
+
+/** The flat outline grows up to this scale on a large stage; titles and thumbnails grow with it. */
+const MAX_FIT = 2.4;
 
 function sketchType(el: HTMLElement): string {
   if (el.dataset.ctSk) return el.dataset.ctSk;
@@ -148,8 +153,36 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
     plane.style.setProperty("--ct-top", `${Math.round(clamp(height - tallest - 40, height * 0.36, height * 0.6))}px`);
   }
 
+  /** Largest scale in [1, MAX_FIT] at which the flat outline needs no scrolling; 1 when even that does not fit. */
+  function fitFlat() {
+    if (depth) return;
+    const fits = (scale: number) => {
+      el.style.setProperty("--ct-ov-fit", String(scale));
+      return el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
+    };
+    if (!el.clientHeight || !fits(1)) return void el.style.setProperty("--ct-ov-fit", "1");
+    let low = 1;
+    let high = MAX_FIT;
+    if (fits(high)) low = high;
+    else
+      for (let i = 0; i < 7; i++) {
+        const mid = (low + high) / 2;
+        if (fits(mid)) low = mid;
+        else high = mid;
+      }
+    el.style.setProperty("--ct-ov-fit", low.toFixed(3));
+  }
+  new ResizeObserver(() => {
+    fitFlat();
+    api.ring(...ringAt, true);
+  }).observe(el);
+
   const api: Overview = {
     el,
+    fit() {
+      fitFlat();
+      api.ring(...ringAt, true);
+    },
     faces,
     thumbs,
     entries,
@@ -160,6 +193,7 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
       depth = on;
       front = -1;
       if (on) fit();
+      else fitFlat();
       setFront(on ? clamp(Math.round(cam), 0, rows - 1) : -1);
       api.ring(...ringAt, true);
     },
@@ -189,13 +223,22 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
         host.append(ringEl);
         instant = true;
       }
-      const { x, y } = offsetIn(face, host);
+      // Flat, the outline's sizes are fractional (it scales to the stage), so the ring is placed by the boxes, to the subpixel;
+      // the depth desk transforms its rows, so there it goes by layout offsets.
+      let box: { x: number; y: number; width: number; height: number };
+      if (depth) box = { ...offsetIn(face, host), width: face.offsetWidth, height: face.offsetHeight };
+      else {
+        const outer = host.getBoundingClientRect();
+        const inner = face.getBoundingClientRect();
+        const k = outer.width / (host.offsetWidth || 1) || 1;
+        box = { x: (inner.left - outer.left) / k, y: (inner.top - outer.top) / k, width: inner.width / k, height: inner.height / k };
+      }
       const style = ringEl.style;
       if (instant) style.transition = "none";
-      style.left = `${x}px`;
-      style.top = `${y}px`;
-      style.width = `${face.offsetWidth}px`;
-      style.height = `${face.offsetHeight}px`;
+      style.left = `${box.x}px`;
+      style.top = `${box.y}px`;
+      style.width = `${box.width}px`;
+      style.height = `${box.height}px`;
       style.setProperty("--n", String(blocks[b].slides[s].pages.length));
       if (instant) {
         void ringEl.offsetWidth;
