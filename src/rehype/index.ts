@@ -29,7 +29,7 @@ import {
   type Group,
   type SlideDraft,
 } from "./draft.js";
-import { element, isElement, markOf, plainText, walkElements, type Element, type HastNode } from "./hast.js";
+import { element, isElement, isEnglishParagraph, markOf, plainText, walkElements, type Element, type HastNode } from "./hast.js";
 import { readHeadings } from "./headings.js";
 import { buildPage } from "./page.js";
 import { dividerOf, firstHeading, kickerOf, kindOf, shortOf, slideTitle } from "./titles.js";
@@ -257,6 +257,10 @@ export function rehypeDeck(options: DeckOptions = {}) {
     rejectNestedMarkers(groups.flatMap(group => group.slides), file);
     checkFrames(groups, file);
     const blocks = assemble(groups, file);
+    // A paragraph of nothing but `:en[…]` is marked for the stylesheet, which cannot tell it from one with Chinese text before the line.
+    walkElements(blocks, node => {
+      if (isEnglishParagraph(node)) node.properties.dataCtEn = true;
+    });
     const deck = element("div", { dataCtDeck: true, ...(deckTitle ? { dataTitle: deckTitle } : {}) }, blocks);
     tree.children = [...before, deck, ...after];
   };

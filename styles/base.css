@@ -12,5 +12,5 @@ html[data-ct-open] { overflow: hidden; }
   letter-spacing: normal; text-transform: none; color: var(--ct-muted, color-mix(in srgb, currentColor 62%, transparent));
 }
 /* An English line of its own (after a heading, in a grid cell) reads a little larger, and sits close under the heading. */
-:where([data-ct-deck]) p > span.en[lang="en"]:only-child { font-size: .8em; }
-:where([data-ct-deck]) :is(h1, h2, h3) + p:has(> span.en[lang="en"]:only-child) { margin-top: -.35em; }
+:where([data-ct-deck]) p[data-ct-en] > span.en[lang="en"] { font-size: .8em; }
+:where([data-ct-deck]) :is(h1, h2, h3) + p[data-ct-en] { margin-top: -.35em; }

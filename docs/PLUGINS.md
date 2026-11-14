@@ -81,7 +81,7 @@ The document, the presenter window, the phone remote, and the outline show the s
 ```
 
 `:en[…]` writes `<span class="en" lang="en">` with its inline Markdown (emphasis, code, links, math) inside; the leaf and container forms and any attribute are errors.
-The stylesheet shows it as a line of its own under the Chinese, in the document and on the stage: `0.62em` in a list item, a table cell, or beside other text, `0.8em` when it is the only child of its paragraph (that paragraph moves up close under a heading before it), weight 400, no inherited uppercase or letter spacing, in the muted colour (`--ct-muted`; over a `::background` the light muted colour).
+The stylesheet shows it as a line of its own under the Chinese, in the document and on the stage: `0.62em` in a list item, a table cell, or beside other text, `0.8em` when it is all of its paragraph (the plugin marks that paragraph `data-ct-en`, which moves up close under a heading before it), weight 400, no inherited uppercase or letter spacing, in the muted colour (`--ct-muted`; over a `::background` the light muted colour).
 A step of `:::build` reveals its Chinese and English together.
 With `structure: "headings"` a paragraph of nothing but `:en[…]` is not content for the page rules: `## 標題`, its English line, then `###` still head one page, and a `####` kicker with its English line still opens the first `##` slide.
 

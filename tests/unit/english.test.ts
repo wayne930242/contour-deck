@@ -43,6 +43,12 @@ describe(":en[…]", () => {
     expect(view.blocks[0].slides[0].title).toBe("第一張");
   });
 
+  it("marks a paragraph of nothing but :en for the stylesheet, and not one with Chinese before it", () => {
+    const html = toHtml("## 標題\n\n:en[Title]\n\n中文 :en[English]");
+    expect(html).toMatch(/<p[^>]* data-ct-en><span class="en" lang="en">Title<\/span><\/p>/);
+    expect(html).toMatch(/<p style="--i: 2">中文 <span class="en" lang="en">English<\/span><\/p>/);
+  });
+
   it("a paragraph with Chinese and English stays content", () => {
     const view = headings("## 標題\n\n中文 :en[English]\n\n### 小標\n\n乙");
     expect(view.blocks[0].slides[0].pages).toHaveLength(2);
