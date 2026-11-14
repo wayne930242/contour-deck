@@ -1,6 +1,6 @@
 {
   "name": "contour-deck",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Outline-first slide decks on real DOM: blocks, slides, pages.",
   "keywords": [
     "slides",
