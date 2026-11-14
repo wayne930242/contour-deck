@@ -131,6 +131,7 @@
 .ct-app[data-ct-panel] .ct-stage { right: var(--ct-notes-w); }
 .ct-app:not([data-ct-mode="stage"]) :is(.ct-stage, .ct-notes), .ct-app:not([data-ct-mode="overview"]) .ct-ov { visibility: hidden; }
 .ct-app[data-ct-busy] :is(.ct-stage, .ct-ov) { visibility: visible; }
+.ct-app[data-ct-cut] .ct-ov { visibility: hidden; }
 /* Three classes deep, so a host's document-view rules for the same elements lose here. */
 .ct-app .ct-stage :is([data-ct-deck], [data-ct-block], [data-ct-slide], [data-ct-page]) { max-width: none; margin: 0; border: 0; }
 .ct-app .ct-stage :is([data-ct-deck], [data-ct-block], [data-ct-slide]) { height: 100%; padding: 0; }
@@ -205,3 +206,5 @@
 @media (prefers-reduced-motion: reduce) {
   .ct-app :is(.ct-layer, .ct-face, .ct-thumb, .ct-ring, .ct-rm, [data-ct-step]) { transition-duration: .01ms !important; }
 }
+/* The opening and the closing blocks are outside the outline and the rail. */
+.ct-tile[hidden], .ct-rg[hidden] { display: none !important; }

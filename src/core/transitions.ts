@@ -42,5 +42,31 @@ export function zoomOverview(overview: HTMLElement, thumb: DOMRect, direction: D
   return overview.animate(direction === "in" ? [far, near] : [near, far], { duration: ms, easing: EASE_OUT, fill: "both" });
 }
 
+/**
+ * Where the block on the stage has no thumbnail (the opening, the closing): the stage settles out of a slight
+ * scale-down as it comes (`in`) and sinks back into one as it goes (`out`). Never a zoom from an empty rectangle.
+ */
+export function liftStage(stage: HTMLElement, direction: Direction, ms: number, reduced: boolean): Animation {
+  if (reduced) return fade(stage, direction);
+  const low = { transform: "scale(.94)", opacity: 0 };
+  const full = { transform: "none", opacity: 1 };
+  const isIn = direction === "in";
+  return stage.animate(isIn ? [low, full] : [full, low], { duration: ms, easing: isIn ? EASE_OUT : EASE_IN_OUT, fill: "both" });
+}
+
+/** The outline rises into place and fades in behind a stage that sinks away (`in`), and drops back as one lifts (`out`). */
+export function riseOverview(overview: HTMLElement, direction: Direction, ms: number, reduced: boolean): Animation {
+  if (reduced) return fade(overview, direction);
+  overview.style.transformOrigin = "";
+  const low = { transform: "translateY(4vh)", opacity: 0 };
+  const near = { transform: "none", opacity: 1 };
+  const isIn = direction === "in";
+  return overview.animate(isIn ? [low, { ...low, offset: 0.25 }, near] : [near, low], {
+    duration: ms,
+    easing: isIn ? EASE_OUT : EASE_IN_OUT,
+    fill: "both",
+  });
+}
+
 /** Resolves when every animation has finished; a cancelled one counts as finished. */
 export const finished = (animations: Animation[]) => Promise.all(animations.map(animation => animation.finished.catch(() => {})));

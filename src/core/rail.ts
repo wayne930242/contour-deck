@@ -1,6 +1,7 @@
 /** The locator rail: the whole deck as a mini-map, one column per slide, one pip per page. */
 import { h, offsetIn } from "./dom.js";
 import type { BlockNode, Pos } from "./model.js";
+import { mainRange } from "./navigator.js";
 import type { Labels } from "./types.js";
 
 export interface Rail {
@@ -12,9 +13,12 @@ export interface Rail {
 export function buildRail(blocks: BlockNode[], labels: Labels): Rail {
   const el = h("nav", "ct-rail", "", { "aria-label": labels.rail });
   const groups: HTMLElement[] = [];
+  const { first, last } = mainRange(blocks.map(block => block.kind));
   const pips = blocks.map((block, b) => {
     const group = el.appendChild(h("div", "ct-rg"));
     if (block.kind) group.dataset.kind = block.kind;
+    // The opening and the closing are outside the talk's map.
+    if (b < first || b > last) group.hidden = true;
     groups.push(group);
     group.append(h("button", "ct-rl", block.short, { "data-ct-go": `${b},0,0`, title: block.title }));
     return block.slides.map((slide, s) => {
@@ -29,6 +33,8 @@ export function buildRail(blocks: BlockNode[], labels: Labels): Rail {
     el,
     mark({ b, s, p }) {
       groups.forEach((group, i) => group.toggleAttribute("data-cur", i === b));
+      // On the opening or the closing the marker leaves the rail.
+      marker.style.visibility = b < first || b > last ? "hidden" : "";
       const { x, y } = offsetIn(pips[b][s][p], el);
       marker.style.transform = `translate(${x}px,${y}px)`;
     },

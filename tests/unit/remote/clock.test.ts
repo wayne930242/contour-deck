@@ -51,6 +51,16 @@ describe("plannedSeconds", () => {
     expect(plannedSeconds(blocks, [])).toBe(870);
     expect(plannedSeconds([{ minutes: 0, kind: "" }], [])).toBeNull();
   });
+
+  it("leaves out the opening and the closing, whatever the skip list", () => {
+    const blocks = [
+      { minutes: 2, kind: "opening" },
+      { minutes: 3, kind: "" },
+      { minutes: 1, kind: "closing" },
+    ];
+    expect(plannedSeconds(blocks, [])).toBe(180);
+    expect(plannedSeconds(blocks, ["appendix"])).toBe(180);
+  });
 });
 
 describe("formatClock", () => {

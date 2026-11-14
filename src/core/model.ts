@@ -37,10 +37,13 @@ function need<T>(list: T[], what: string): T[] {
 }
 
 export function readModel(root: HTMLElement, deckTitle: string): BlockNode[] {
-  return need(childrenWith(root, "data-ct-block"), "the deck has no [data-ct-block] child").map((el, b) => ({
+  const elements = need(childrenWith(root, "data-ct-block"), "the deck has no [data-ct-block] child");
+  // Blocks without a label are numbered as the talk counts them: an opening block is not the first.
+  const opening = elements.length > 1 && elements[0].dataset.kind === "opening" ? 1 : 0;
+  return elements.map((el, b) => ({
     el,
     title: el.dataset.title || deckTitle,
-    short: el.dataset.short || String(b + 1),
+    short: el.dataset.short || (b < opening ? "0" : String(b + 1 - opening)),
     kind: el.dataset.kind || "",
     minutes: Number(el.dataset.minutes) || 0,
     slides: need(childrenWith(el, "data-ct-slide"), `block ${b + 1} has no [data-ct-slide] child`).map((slide, s) => ({

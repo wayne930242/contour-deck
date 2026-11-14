@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>contour-deck demo｜開場與結尾</title>
+<!--
+  Opening and closing blocks (::block{kind=opening}, ::block{kind=closing}, docs/PLUGINS.md#opening-and-closing):
+  the deck opens on the title pages, past them goes to the outline, and past the last block of the talk
+  (the appendix is skipped) comes the thank-you. Neither is in the outline or the rail. Build the assets first: pnpm build.
+-->
+<link rel="stylesheet" href="assets/contour-deck.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main class="doc">
+  <header class="doc-head">
+    <h1>開場與結尾</h1>
+    <button id="start">START</button>
+    <nav class="doc-decks" aria-label="示範簡報">
+      <a href="./">框架示範</a>
+      <a href="background.html">頁面背景</a>
+      <a href="frames.html" aria-current="page">開場與結尾</a>
+    </nav>
+  </header>
+
+  <div data-ct-deck data-title="開場與結尾">
+    <section data-ct-block data-title="會議名稱" data-short="會" data-kind="opening" data-minutes="2">
+      <section data-ct-slide id="cover" data-title="斷頭神論">
+        <section data-ct-page>
+          <h1>斷頭神論</h1>
+          <p><span class="en" lang="en">The Headless Oracle</span></p>
+        </section>
+      </section>
+      <section data-ct-slide id="why" data-title="為什麼談圍棋">
+        <section data-ct-page>
+          <h2>為什麼談圍棋？</h2>
+          <ul><li>古老的競技遊戲</li></ul>
+        </section>
+      </section>
+    </section>
+    <section data-ct-block data-title="引言" data-short="引" data-minutes="5">
+      <section data-ct-slide id="intro-1" data-title="引言一">
+        <section data-ct-page>
+          <h2>引言一</h2>
+          <p>第一段。</p>
+        </section>
+      </section>
+      <section data-ct-slide id="intro-2" data-title="引言二">
+        <section data-ct-page>
+          <h2>引言二</h2>
+          <p>第二段。</p>
+        </section>
+      </section>
+    </section>
+    <section data-ct-block data-title="一、正文" data-minutes="10">
+      <section data-ct-slide id="body-1" data-title="正文">
+        <section data-ct-page>
+          <h2>正文</h2>
+          <p>最後一張正文。</p>
+        </section>
+      </section>
+    </section>
+    <section data-ct-block data-title="附錄" data-short="附" data-kind="appendix">
+      <section data-ct-slide id="appendix-1" data-title="附錄">
+        <section data-ct-page>
+          <h2>附錄</h2>
+          <p>會上不念。</p>
+        </section>
+      </section>
+    </section>
+    <section data-ct-block data-title="全文" data-short="全" data-kind="closing" data-minutes="1">
+      <section data-ct-slide id="thanks" data-title="銘謝聆聽">
+        <section data-ct-page>
+          <h2>銘謝聆聽</h2>
+          <p><span class="en" lang="en">Thank you</span></p>
+        </section>
+      </section>
+    </section>
+  </div>
+</main>
+
+<script src="assets/contour-deck.js"></script>
+<script>
+  (function () {
+    var root = document.querySelector("[data-ct-deck]");
+    var demo = (window.contourDemo = { deck: null, remote: null, events: [] });
+    function open(options) {
+      if (demo.deck) return;
+      demo.deck = ContourDeck.createDeck(root, options);
+      demo.deck.on("exit", close);
+    }
+    function close() {
+      demo.deck.destroy();
+      demo.deck = null;
+    }
+    demo.open = open;
+    demo.close = close;
+    document.getElementById("start").addEventListener("click", function () { open(); });
+    var view = new URLSearchParams(location.search).get("view");
+    if (view === "deck" || view === "notes") open();
+  })();
+</script>
+</body>
+</html>

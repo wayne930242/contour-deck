@@ -108,6 +108,34 @@ In rules 1–3, slides before the first block form a block titled by the deck ti
 A title that starts with `附錄` gets `data-kind="appendix"` under rules 2 and 3 (under rule 1 write `kind=appendix`).
 `data-short` is `short` when given, else derived from the title: `三、…` gives `三`, `附錄 A｜…` gives `A`; no label when the lead is longer than 3 characters.
 
+## Opening and closing
+
+```md
+::block{kind=opening}
+
+#### 2026 哲學學術會議
+
+# 斷頭神論
+
+---
+
+…
+
+---
+
+::block{kind=closing}
+
+#### 全文
+
+## 銘謝聆聽
+```
+
+`kind=opening` on the first block and `kind=closing` on the last frame the talk; in headings mode write `::block{kind=opening}` anywhere in the block, such as above its `####` (the title still comes from the heading). At most one of each, the opening only first and the closing only last, with at least one other block: otherwise the build fails.
+- The deck opens on the opening's first slide instead of the outline; past its last slide it goes to the outline, with the focus on the talk's first slide. ← on its first slide does nothing; Esc or O from it goes to the outline.
+- Past the last slide of the talk (an appendix is skipped as before) comes the closing; ← from its first slide goes back to that slide.
+- Neither is drawn in the outline or the locator rail (the rail marker hides while on one), and their minutes are not planned time. Unlabelled blocks are numbered from the talk's first block. Deep links (`at=1`, the last block's number) and `deck.go` reach both; the document view shows them in place.
+- They have no thumbnail to zoom from: the stage lifts in out of a slight scale-down and sinks back into one, the outline rising behind it; under reduced motion they only fade.
+
 ## Headings mode
 
 With `structure: "headings"` the outline of the deck is the outline of the Markdown: `---` starts a block, `##` a slide, `###` a page.

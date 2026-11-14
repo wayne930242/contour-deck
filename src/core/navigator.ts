@@ -10,3 +10,16 @@ export function neighbourBlock(kinds: string[], from: number, direction: 1 | -1,
   }
   return -1;
 }
+
+/** Kinds of the blocks around the talk: the title pages before the outline, the thank-you after the last block. */
+export const FRAME_KINDS = ["opening", "closing"];
+
+/**
+ * The blocks the outline and the rail draw, `first` to `last`: all but an `opening` first block and a
+ * `closing` last block (the build allows them only there).
+ */
+export function mainRange(kinds: string[]): { first: number; last: number } {
+  const first = kinds[0] === "opening" && kinds.length > 1 ? 1 : 0;
+  const last = kinds.length - 1 > first && kinds[kinds.length - 1] === "closing" ? kinds.length - 2 : kinds.length - 1;
+  return { first, last };
+}

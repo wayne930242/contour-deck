@@ -1,6 +1,7 @@
 /** The outline: one panel per block, one schematic thumbnail per slide; in 3D, one row per block on the depth desk. */
 import { clamp, h, offsetIn } from "./dom.js";
 import type { BlockNode } from "./model.js";
+import { mainRange } from "./navigator.js";
 import type { Labels } from "./types.js";
 
 export interface Overview {
@@ -14,9 +15,9 @@ export interface Overview {
   seen(b: number, s: number): void;
   /** Switches the depth desk on or off and fits its rows to the outline's size. */
   depth(on: boolean): void;
-  /** The depth desk's camera: the row it stands at, fractional while it moves. Without an argument, reads it. */
+  /** The depth desk's camera, in rows: the row it stands at, fractional while it moves. Without an argument, reads it. */
   camera(at?: number): number;
-  /** The block whose row is under `el`, or -1. */
+  /** The block whose row is under `el`, or -1. Row `r` holds block `first + r`: an opening block has no row. */
   rowOf(el: Element): number;
   /** Scroll distance of one row on the depth desk. */
   readonly step: number;
@@ -59,6 +60,8 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
   const faces: HTMLElement[][] = [];
   const thumbs: HTMLButtonElement[][] = [];
   const tiles: HTMLElement[] = [];
+  const { first, last } = mainRange(blocks.map(block => block.kind));
+  const rows = last - first + 1;
   const visited = blocks.map(block => block.slides.map(() => false));
   let depth = false;
   let cam = 0;
@@ -67,10 +70,14 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
 
   blocks.forEach((block, b) => {
     const tile = plane.appendChild(h("section", "ct-tile"));
-    tile.style.setProperty("--i", String(b));
     tiles.push(tile);
-    stops.append(h("i"));
     if (block.kind) tile.dataset.kind = block.kind;
+    // The opening and the closing keep their thumbnails for the stage's bookkeeping, but are not drawn and take no row of the depth desk.
+    if (b < first || b > last) tile.hidden = true;
+    else {
+      tile.style.setProperty("--i", String(b - first));
+      stops.append(h("i"));
+    }
     if (block.slides.length > 3) tile.dataset.wide = "";
     const pages = block.slides.reduce((sum, slide) => sum + slide.pages.length, 0);
     const meta = [labels.slides(block.slides.length)];
@@ -111,8 +118,8 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
     if (row === front) return;
     front = row;
     tiles.forEach((tile, b) => {
-      tile.toggleAttribute("data-ct-front", depth && b === row);
-      tile.toggleAttribute("data-ct-past", depth && b < row);
+      tile.toggleAttribute("data-ct-front", depth && !tile.hidden && b - first === row);
+      tile.toggleAttribute("data-ct-past", depth && !tile.hidden && b - first < row);
     });
   }
 
@@ -140,14 +147,14 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
       depth = on;
       front = -1;
       if (on) fit();
-      setFront(on ? clamp(Math.round(cam), 0, tiles.length - 1) : -1);
+      setFront(on ? clamp(Math.round(cam), 0, rows - 1) : -1);
       api.ring(...ringAt, true);
     },
     camera(at) {
       if (at === undefined) return cam;
       cam = at;
       plane.style.setProperty("--ct-cam", String(+at.toFixed(4)));
-      setFront(depth ? clamp(Math.round(at), 0, tiles.length - 1) : -1);
+      setFront(depth ? clamp(Math.round(at), 0, rows - 1) : -1);
       return cam;
     },
     rowOf: target => tiles.findIndex(tile => tile.contains(target)),

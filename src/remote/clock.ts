@@ -1,4 +1,5 @@
 /** The talk clock: time since the first move on the stage, and the time spent in each block. No DOM. */
+import { FRAME_KINDS } from "../core/navigator.js";
 
 /** What the clock keeps; plain data, so the host can put it in `sessionStorage` and survive a reload. */
 export interface ClockState {
@@ -63,9 +64,13 @@ export function createClock(restored?: ClockState | null): Clock {
   };
 }
 
-/** Planned seconds of the talk: the minutes of every block the linear advance enters, or `null` when none has any. */
+/**
+ * Planned seconds of the talk: the minutes of every block the linear advance enters, but the opening and the
+ * closing, or `null` when none has any.
+ */
 export function plannedSeconds(blocks: { minutes: number; kind: string }[], skip: string[]): number | null {
-  const minutes = blocks.reduce((sum, block) => sum + (skip.includes(block.kind) ? 0 : block.minutes), 0);
+  const outside = [...skip, ...FRAME_KINDS];
+  const minutes = blocks.reduce((sum, block) => sum + (outside.includes(block.kind) ? 0 : block.minutes), 0);
   return minutes > 0 ? Math.round(minutes * 60) : null;
 }
 

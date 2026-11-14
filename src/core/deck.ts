@@ -5,12 +5,12 @@ import { createWheelGate } from "./gestures.js";
 import { defaultLabels } from "./labels.js";
 import { fitPos, formatAt, parseAt, posOf, readModel } from "./model.js";
 import type { PageNode, Pos, SlideNode } from "./model.js";
-import { neighbourBlock } from "./navigator.js";
+import { mainRange, neighbourBlock } from "./navigator.js";
 import { buildScript, notesHtml } from "./notes.js";
 import { buildOverview } from "./overview.js";
 import { buildRail } from "./rail.js";
 import { isTall, nextStop, pageIndexAt, pageProgress, pageStops } from "./stops.js";
-import { finished, zoomOverview, zoomStage } from "./transitions.js";
+import { finished, liftStage, riseOverview, zoomOverview, zoomStage } from "./transitions.js";
 import type { Deck, DeckChange, DeckOptions, DeckState, Mode } from "./types.js";
 
 const ON = "data-ct-on";
@@ -24,6 +24,16 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   const blocks = readModel(root, deckTitle);
   const kinds = blocks.map(block => block.kind);
   const skip = options.linear?.skip ?? ["appendix"];
+  // An opening first block and a closing last block stand outside the outline and the rail: `first` to `last` is the talk's map.
+  const { first, last } = mainRange(kinds);
+  const framed = (b: number) => b < first || b > last;
+  /** Where the outline stands when the stage leaves a framing block: the talk's first slide, or from the closing the last slide ← goes back to. */
+  const mapped = (at: Pos): Pos => {
+    if (at.b < first) return { b: first, s: 0, p: 0 };
+    if (at.b <= last) return at;
+    const b = Math.max(first, neighbourBlock(kinds, at.b, -1, skip));
+    return { b, s: blocks[b].slides.length - 1, p: 0 };
+  };
   const useUrl = options.url !== false;
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const reduced = () => motion.matches;
@@ -47,7 +57,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   let pending: { s: number; top: () => number; left: number; still: number } | null = null;
   let wakeLock: Promise<WakeLockSentinel | void> | null = null;
   /** The depth desk: the row the camera is headed for, and the camera move under way. */
-  let aim = 0;
+  let aim = first;
   let move = 0;
   let endMove: (() => void) | null = null;
 
@@ -295,8 +305,12 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     readScroll();
     const s = pos.s + direction;
     if (blocks[pos.b].slides[s]) return slideTo(s, end);
+    // Past the opening's last slide the talk begins on the outline.
+    if (direction > 0 && pos.b < first) return void leave(mapped(pos));
     const b = neighbourBlock(kinds, pos.b, direction, skip);
-    if (b >= 0) void fly({ b, s: direction > 0 ? 0 : blocks[b].slides.length - 1, p: 0 }, direction < 0 && end);
+    if (b < 0) return;
+    const at = { b, s: direction > 0 ? 0 : blocks[b].slides.length - 1, p: 0 };
+    void (framed(b) || framed(pos.b) ? cut(at, direction < 0 && end) : fly(at, direction < 0 && end));
   }
 
   function next() {
@@ -331,9 +345,11 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   }
 
   /* ---- transitions between the outline and the stage ---- */
-  const setBusy = (on: boolean) => {
+  /** While a transition runs the stage and the outline both show; `cut`: a move between two slides, which keeps the outline hidden. */
+  const setBusy = (on: boolean, cut = false) => {
     busy = on;
     app.toggleAttribute("data-ct-busy", on);
+    app.toggleAttribute("data-ct-cut", on && cut);
   };
   const thumbRect = (at: Pos) => {
     const face = overview.faces[at.b][at.s];
@@ -416,24 +432,80 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     render();
   }
 
+  /*
+   * The opening and the closing have no thumbnail to zoom from or into: the stage lifts in out of a slight
+   * scale-down and sinks back into one, and the outline rises in behind it or drops away.
+   */
+  const LIFT_IN_MS = 420;
+  const SINK_MS = 260;
+
+  /** Stage to stage where either block is the opening or the closing: the stage sinks away, then lifts in on the new slide. */
+  async function cut(at: Pos, end = false) {
+    setBusy(true, true);
+    const out = liftStage(stage, "out", SINK_MS, reduced());
+    await finished([out]);
+    if (!alive) return;
+    place(at, end);
+    render();
+    const into = liftStage(stage, "in", LIFT_IN_MS, reduced());
+    out.cancel();
+    await finished([into]);
+    if (!alive) return;
+    into.cancel();
+    setBusy(false);
+    stage.focus({ preventScroll: true });
+    render();
+  }
+
+  /** From the opening or the closing to the outline: the stage sinks while the outline rises in, focus on the talk's thumbnail at `at`. */
+  async function leave(at: Pos) {
+    setBusy(true);
+    overview.ring(at.b, at.s, true);
+    if (depthOn()) front(at.b, true);
+    const animations = [liftStage(stage, "out", SINK_MS, reduced()), riseOverview(overview.el, "in", LIFT_IN_MS, reduced())];
+    await finished(animations);
+    if (!alive) return;
+    place(at);
+    mode = "overview";
+    render();
+    setBusy(false);
+    cancel(animations);
+    overview.thumbs[pos.b][pos.s].focus({ preventScroll: true });
+  }
+
+  /** From the outline to the opening or the closing: the outline drops away while the stage lifts in. */
+  async function enter(at: Pos) {
+    place(at);
+    setBusy(true);
+    const animations = [riseOverview(overview.el, "out", SINK_MS, reduced()), liftStage(stage, "in", LIFT_IN_MS, reduced())];
+    await finished(animations);
+    if (!alive) return;
+    mode = "stage";
+    render();
+    setBusy(false);
+    cancel(animations);
+    stage.focus({ preventScroll: true });
+  }
+
   async function goTo(target: Pos | null) {
     const at = target && fitPos(blocks, target);
     if (!at || busy) return;
-    if (mode === "overview") return open(at);
+    if (mode === "overview") return framed(at.b) ? enter(at) : open(at);
     if (mode === "notes") {
       place(at);
       mode = "stage";
       render();
       return stage.focus({ preventScroll: true });
     }
-    if (at.b !== pos.b) return fly(at);
+    if (at.b !== pos.b) return framed(at.b) || framed(pos.b) ? cut(at) : fly(at);
     slideTo(at.s, false, at.p);
   }
 
   async function toOverview() {
     if (busy || mode === "overview") return;
     readScroll();
-    if (mode === "stage") return close();
+    if (mode === "stage") return framed(pos.b) ? leave(mapped(pos)) : close();
+    if (framed(pos.b)) place(mapped(pos));
     mode = "overview";
     if (depthOn()) front(pos.b, true);
     render();
@@ -486,28 +558,30 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
 
   /** Brings a block's row to the front of the depth desk: the camera glides there, or jumps under reduced motion. */
   function front(b: number, instant = reduced()): Promise<void> {
-    b = clamp(b, 0, blocks.length - 1);
+    b = clamp(b, first, last);
     if (move && aim === b && !instant) return Promise.resolve();
     stopMove();
     aim = b;
     const ov = overview.el;
     const from = overview.camera();
-    if (instant || from === b) {
-      overview.camera(b);
-      ov.scrollTop = b * overview.step;
+    // The camera counts rows; an opening block has none, so block `first` stands at row 0.
+    const row = b - first;
+    if (instant || from === row) {
+      overview.camera(row);
+      ov.scrollTop = row * overview.step;
       return Promise.resolve();
     }
     const started = performance.now();
-    const ms = clamp(240 + 80 * Math.abs(b - from), 240, 640);
+    const ms = clamp(240 + 80 * Math.abs(row - from), 240, 640);
     return new Promise(resolve => {
       endMove = resolve;
       const tick = (now: number) => {
         const t = Math.min(1, (now - started) / ms);
-        overview.camera(from + (b - from) * (1 - (1 - t) ** 3));
+        overview.camera(from + (row - from) * (1 - (1 - t) ** 3));
         if (t < 1) return void (move = requestAnimationFrame(tick));
         move = 0;
         endMove = null;
-        ov.scrollTop = b * overview.step;
+        ov.scrollTop = row * overview.step;
         resolve();
       };
       move = requestAnimationFrame(tick);
@@ -516,7 +590,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
 
   /** A row on the depth desk, with the focus on its first thumbnail, or on the current one in the current block. */
   function toRow(b: number) {
-    b = clamp(b, 0, blocks.length - 1);
+    b = clamp(b, first, last);
     overview.thumbs[b][b === pos.b ? pos.s : 0].focus({ preventScroll: true });
     void front(b);
   }
@@ -596,7 +670,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   );
 
   function focusThumb(step: number) {
-    const all = overview.thumbs.flat();
+    const all = overview.thumbs.slice(first, last + 1).flat();
     const focused = all.indexOf(document.activeElement as HTMLButtonElement);
     all[focused < 0 ? all.indexOf(overview.thumbs[pos.b][pos.s]) : clamp(focused + step, 0, all.length - 1)].focus({ preventScroll: depthOn() });
   }
@@ -619,7 +693,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
       const at = overview.el.scrollTop / overview.step;
       const row = Math.round(at);
       overview.camera(Math.abs(at - row) < 0.02 ? row : at);
-      aim = clamp(row, 0, blocks.length - 1);
+      aim = clamp(row + first, first, last);
     },
     { passive: true, signal }
   );
@@ -640,7 +714,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
         if (key === "3") run = toggle3d;
         else if (key === "Escape") run = exit;
         else if (rows && (key === "ArrowUp" || key === "ArrowDown")) run = () => toRow(aim + (key === "ArrowDown" ? 1 : -1));
-        else if (rows && (key === "Home" || key === "End")) run = () => toRow(key === "Home" ? 0 : blocks.length - 1);
+        else if (rows && (key === "Home" || key === "End")) run = () => toRow(key === "Home" ? first : last);
         else if (key.startsWith("Arrow")) run = () => focusThumb(key === "ArrowRight" || key === "ArrowDown" ? 1 : -1);
         else if (key === "PageDown" || (activates && !onControl)) run = next;
       } else if (mode === "notes") {
@@ -706,8 +780,15 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   place(startAt ?? pos);
   if (startView === "notes") mode = "notes";
   else if (startAt) mode = "stage";
+  // A deck with an opening opens on its title pages, not on the outline.
+  else if (first > 0) mode = "stage";
   if (options.overview === "3d") toggle3d();
   render();
+  // Opening on the title pages: the stage lifts in, with no outline before it.
+  if (mode === "stage" && framed(pos.b)) {
+    const lift = liftStage(stage, "in", LIFT_IN_MS, reduced());
+    void finished([lift]).then(() => lift.cancel());
+  }
   if (mode === "notes") script.show(pos);
   // Focus moves into the shell, so the keys reach the deck and not the control that opened it.
   focusLayer();

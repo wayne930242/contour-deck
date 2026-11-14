@@ -211,6 +211,23 @@ function assemble(groups: Group[], file: DeckFile): Element[] {
   });
 }
 
+/** `kind=opening` only on the first block and `kind=closing` only on the last, once each, around at least one other block. */
+function checkFrames(groups: Group[], file: DeckFile): void {
+  groups.forEach(({ spec }, b) => {
+    if (spec.kind === "opening" && b !== 0) {
+      file.fail(`::block kind=opening must be the first block, but "${spec.title}" is block ${b + 1}`, undefined, ORIGIN);
+    }
+    if (spec.kind === "closing" && b !== groups.length - 1) {
+      file.fail(`::block kind=closing must be the last block, but "${spec.title}" is block ${b + 1} of ${groups.length}`, undefined, ORIGIN);
+    }
+  });
+  if (groups.every(({ spec }) => spec.kind === "opening" || spec.kind === "closing")) {
+    if (groups.some(({ spec }) => spec.kind)) {
+      file.fail("::block kind=opening and kind=closing need at least one other block between them", undefined, ORIGIN);
+    }
+  }
+}
+
 function frontmatterTitle(file: DeckFile): string | undefined {
   const { astro } = file.data as { astro?: { frontmatter?: { title?: unknown } } };
   const title = astro?.frontmatter?.title;
@@ -238,6 +255,7 @@ export function rehypeDeck(options: DeckOptions = {}) {
         ? readHeadings(flow, deckTitle, file)
         : groupBlocks(readSlides(flow, file), deckTitle);
     rejectNestedMarkers(groups.flatMap(group => group.slides), file);
+    checkFrames(groups, file);
     const blocks = assemble(groups, file);
     const deck = element("div", { dataCtDeck: true, ...(deckTitle ? { dataTitle: deckTitle } : {}) }, blocks);
     tree.children = [...before, deck, ...after];
