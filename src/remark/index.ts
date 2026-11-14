@@ -10,6 +10,7 @@
  * | `::block{title="…" minutes=5 kind=appendix}`     | block marker                             |
  * | `::slide{#id}`                                   | marker that gives the slide its id       |
  * | `::background{image="…" dim=0.6}`                | `<div data-ct-background>` (see below)   |
+ * | `:en[English]`                                   | `<span class="en" lang="en">`            |
  *
  * A directive written in the wrong form (`::summary` for `:::summary`) is an error here,
  * not an empty box, and so is an unknown attribute.
@@ -42,7 +43,7 @@ export interface RemarkDeckOptions {
   structure?: StructureOption;
 }
 
-type Form = "container" | "leaf";
+type Form = "container" | "leaf" | "text";
 
 interface Directive {
   form: Form;
@@ -145,6 +146,11 @@ function background(node: MdNode, attributes: Record<string, string>, file: Deck
 }
 
 const DIRECTIVES: Record<string, Directive> = {
+  en: {
+    form: "text",
+    attributes: [],
+    hast: () => ({ hName: "span", hProperties: { className: ["en"], lang: "en" } }),
+  },
   background: {
     form: "leaf",
     attributes: ["image", "video", "youtube", "poster", "start", "end", "dim", "position", "credit"],
@@ -224,6 +230,7 @@ const FORM_OF_TYPE: Record<string, Form | "text"> = {
 const EXAMPLE: Record<Form, (name: string) => string> = {
   container: name => `:::${name} … :::`,
   leaf: name => `::${name}`,
+  text: name => `:${name}[…]`,
 };
 
 function apply(node: MdNode, file: DeckFile, structure: Structure): void {

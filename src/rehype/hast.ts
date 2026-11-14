@@ -69,3 +69,15 @@ export function walkElements(nodes: HastNode[], visit: (node: Element) => void):
     walkElements(node.children, visit);
   }
 }
+
+/** `<span class="en" lang="en">`, the English line `:en[…]` writes. */
+export function isEnglishLine(node: HastNode): boolean {
+  return isElement(node) && node.tagName === "span" && node.properties.lang === "en" && classesOf(node).includes("en");
+}
+
+/** A paragraph that holds nothing but an English line: it belongs to the heading above it. */
+export function isEnglishParagraph(node: HastNode): boolean {
+  if (!isElement(node) || node.tagName !== "p") return false;
+  const children = node.children.filter(child => !isBlank(child));
+  return children.length === 1 && isEnglishLine(children[0]);
+}

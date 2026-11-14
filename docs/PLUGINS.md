@@ -32,6 +32,7 @@ When both run on the same file (one unified pipeline), different structures make
 | `:::build` … `:::` | `data-ct-step` on each list item, table body row, or other block inside; the wrapper is removed | the same |
 | `::block{title="三、翻頁怎麼運作" minutes=5 kind=appendix short=三 #id}` | starts a block. `title` is required. | sets the attributes of the block it stands in. Every attribute is optional. |
 | `::slide{#tradeoff}` | the slide's `id` (otherwise `s-<block>-<slide>`) | the same |
+| `:en[English]` (text form only) | `<span class="en" lang="en">`, the English line of a bilingual slide: small and muted under the Chinese, keeping its inline Markdown (see Bilingual lines) | the same; a paragraph of nothing but `:en[…]` belongs to the heading above it |
 | `::background{image="/img/board.jpg" dim=0.6}` | `<div data-ct-background>`, moved to be the first child of the page that holds it (see Page backgrounds) | the same |
 
 A directive in the wrong form (`::summary`, `:::vertical`), with an unknown attribute, or with an invalid value is an error, not an empty box.
@@ -68,6 +69,21 @@ A video plays muted, without controls, only while its page is the current page o
 The still fades out only once playback has actually started.
 YouTube plays from `youtube-nocookie.com`, muted (the still stays over it for the first 3 seconds, while YouTube shows its pause bezel), without controls, related videos, keyboard, or captions (`cc_load_policy=0`, and the captions module unloaded at every start of playback), and takes no pointer; the frame is scaled past cover so the title bar and logo stay outside the stage.
 The document, the presenter window, the phone remote, and the outline show the still only, and so does the stage under `prefers-reduced-motion: reduce`.
+
+## Bilingual lines
+
+```md
+## 為什麼在電玩場次談圍棋？
+
+:en[Why talk about Go in a video game session?]
+
+- 古老的競技遊戲 :en[An ancient competitive game]
+```
+
+`:en[…]` writes `<span class="en" lang="en">` with its inline Markdown (emphasis, code, links, math) inside; the leaf and container forms and any attribute are errors.
+The stylesheet shows it as a line of its own under the Chinese, in the document and on the stage: `0.62em` in a list item, a table cell, or beside other text, `0.8em` when it is the only child of its paragraph (that paragraph moves up close under a heading before it), weight 400, no inherited uppercase or letter spacing, in the muted colour (`--ct-muted`; over a `::background` the light muted colour).
+A step of `:::build` reveals its Chinese and English together.
+With `structure: "headings"` a paragraph of nothing but `:en[…]` is not content for the page rules: `## 標題`, its English line, then `###` still head one page, and a `####` kicker with its English line still opens the first `##` slide.
 
 ## Slides and pages
 

@@ -43,7 +43,7 @@ const media = (page: import("@playwright/test").Page) => page.locator("[data-ct-
 
 test("closed, the deck shows each background's still as a picture and plays nothing", async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator("[data-ct-background] > img")).toHaveCount(4);
+  await expect(page.locator("[data-ct-background] > img")).toHaveCount(5);
   await expect(page.locator("[data-ct-background] > img").first()).toBeVisible();
   await expect(page.locator("video, iframe")).toHaveCount(0);
 });
@@ -178,6 +178,45 @@ test("a YouTube start past the video's end loops from 0", async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { stubSeen: { func?: string; args?: unknown[] }[] }).stubSeen))
     .toContainEqual(expect.objectContaining({ func: "seekTo", args: [0, true] }));
+});
+
+test(":en lines sit small and muted under the Chinese, light over a background, whole with their step", async ({ page }) => {
+  await page.goto(`${DEMO}?view=deck&at=1.6`);
+  await expectAt(page, "stage 1.6.1 +0");
+  const size = (selector: string) => page.locator(selector).evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  const alone = page.locator("#bilingual p > .en");
+  await expect(alone).toHaveCSS("display", "block");
+  await expect(alone).toHaveCSS("font-weight", "400");
+  // Over the scrim it takes the light muted colour of the page with a background.
+  await expect(alone).toHaveCSS("color", "rgb(201, 201, 195)");
+  const p = await size("#bilingual p");
+  expect((await size("#bilingual p > .en")) / p).toBeCloseTo(0.8, 2);
+  expect((await size("#bilingual li .en >> nth=0")) / (await size("#bilingual li >> nth=0"))).toBeCloseTo(0.62, 2);
+  expect((await size("#bilingual td .en")) / (await size("#bilingual td"))).toBeCloseTo(0.62, 2);
+  // A step shows its Chinese and English together.
+  await expect(page.locator("#bilingual li").first()).toHaveCSS("opacity", "0");
+  await page.keyboard.press("ArrowRight");
+  await expectAt(page, "stage 1.6.1 +1");
+  await expect(page.locator("#bilingual li").first()).toHaveCSS("opacity", "1");
+  await expect(page.locator("#bilingual li .en").first()).toBeVisible();
+
+  await page.goto(`${DEMO}?view=deck&at=1.7`);
+  await expectAt(page, "stage 1.7.1 +0");
+  const kicker = page.locator("#bilingual-plain h4 .en");
+  await expect(kicker).toHaveCSS("text-transform", "none");
+  await expect(kicker).toHaveCSS("font-weight", "400");
+  // Without a background it takes the deck's muted colour, not the text colour.
+  const [en, h2] = await Promise.all([
+    page.locator("#bilingual-plain p > .en").evaluate(el => getComputedStyle(el).color),
+    page.locator("#bilingual-plain h2").evaluate(el => getComputedStyle(el).color),
+  ]);
+  expect(en).not.toBe(h2);
+});
+
+test("closed, the document shows each :en line under its Chinese", async ({ page }) => {
+  await page.goto(DEMO);
+  await expect(page.locator("#bilingual li .en").first()).toHaveCSS("display", "block");
+  await expect(page.locator("#bilingual li .en").first()).toBeVisible();
 });
 
 test("with reduced motion the poster stays and nothing plays", async ({ page }) => {

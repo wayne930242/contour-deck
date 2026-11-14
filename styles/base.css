@@ -6,3 +6,11 @@ html[data-ct-open] { overflow: hidden; }
 [data-ct-background]:not(:has(> img, > [data-ct-credit])) { display: none; }
 [data-ct-credit] { display: block; margin-top: .3em; font-size: .75em; opacity: .7; }
 [data-ct-background] > img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: var(--ct-position, center); }
+/* `:en[…]`: the English line of a bilingual slide, small under the Chinese, in the document and on the stage. */
+:where([data-ct-deck]) span.en[lang="en"] {
+  display: block; margin-top: .12em; font-size: .62em; font-weight: 400; font-style: normal; line-height: 1.35;
+  letter-spacing: normal; text-transform: none; color: var(--ct-muted, color-mix(in srgb, currentColor 62%, transparent));
+}
+/* An English line of its own (after a heading, in a grid cell) reads a little larger, and sits close under the heading. */
+:where([data-ct-deck]) p > span.en[lang="en"]:only-child { font-size: .8em; }
+:where([data-ct-deck]) :is(h1, h2, h3) + p:has(> span.en[lang="en"]:only-child) { margin-top: -.35em; }
