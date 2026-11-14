@@ -102,7 +102,7 @@ test("YouTube mounts a no-cookie embed only for its page and loops it from start
   await expect(frame).toHaveCount(1);
   const src = new URL((await frame.getAttribute("src"))!);
   expect(src.origin + src.pathname).toBe("https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ");
-  expect(Object.fromEntries(src.searchParams)).toMatchObject({ mute: "1", controls: "0", rel: "0", disablekb: "1", start: "30" });
+  expect(Object.fromEntries(src.searchParams)).toMatchObject({ mute: "1", controls: "0", rel: "0", disablekb: "1", cc_load_policy: "0", start: "30" });
   expect(src.searchParams.has("end")).toBe(false);
   await expect(frame).toHaveCSS("pointer-events", "none");
   expect(await frame.getAttribute("tabindex")).toBe("-1");
@@ -119,6 +119,12 @@ test("YouTube mounts a no-cookie embed only for its page and loops it from start
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { stubSeen: { func?: string; args?: unknown[] }[] }).stubSeen))
     .toContainEqual(expect.objectContaining({ func: "seekTo", args: [30, true] }));
+  // Captions are unloaded on ready and again after the loop.
+  const unloads = await page.evaluate(() =>
+    (window as unknown as { stubSeen: { func?: string; args?: unknown[] }[] }).stubSeen.filter(m => m.func === "unloadModule").map(m => m.args?.[0])
+  );
+  expect(unloads.filter(name => name === "captions").length).toBeGreaterThanOrEqual(2);
+  expect(unloads).toContain("cc");
 
   await page.keyboard.press("ArrowLeft");
   await expectAt(page, "stage 1.2.1 +0");

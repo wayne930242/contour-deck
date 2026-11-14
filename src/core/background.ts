@@ -84,6 +84,7 @@ export function youtubeUrl(id: string, start: number, origin: string): string {
     playsinline: "1",
     fs: "0",
     iv_load_policy: "3",
+    cc_load_policy: "0",
     modestbranding: "1",
     enablejsapi: "1",
   });
@@ -106,11 +107,17 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
   const command = (func: string, args: unknown[] = []) => post({ event: "command", func, args });
   /** When the last seek was sent: the messages after it still carry the old time for a moment. */
   let seeked = -Infinity;
+  // Muted embeds turn on YouTube's automatic captions; the player loads them as a module, so unload it.
+  const noCaptions = () => {
+    command("unloadModule", ["captions"]);
+    command("unloadModule", ["cc"]);
+  };
   const restart = () => {
     if (performance.now() - seeked < 1000) return;
     seeked = performance.now();
     command("seekTo", [start, true]);
     command("playVideo");
+    noCaptions();
   };
   // The player answers only once it is ready: ask until it does.
   let heard = false;
@@ -121,6 +128,7 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
   };
   // YouTube shows a pause bezel for the first seconds of playback: the still stays over it until they pass.
   let reveal = 0;
+  let lastState: number | undefined;
   frame.addEventListener(
     "load",
     () => {
@@ -144,10 +152,14 @@ function playYoutube(box: HTMLElement, id: string, start: number, end: number): 
       const info = data.info as { playerState?: number; currentTime?: number } | number | null | undefined;
       if (data.event === "onReady") {
         command("mute");
+        noCaptions();
         command("playVideo");
       }
       const state = typeof info === "number" ? info : info?.playerState;
       // 1 playing, 0 ended (the embed's `end` stops it there).
+      // Each start of playback, the first and after every loop, may load the captions again.
+      if (state === 1 && lastState !== 1) noCaptions();
+      if (typeof state === "number") lastState = state;
       if (state === 1 && !reveal && !frame.hasAttribute(PLAYING)) {
         reveal = window.setTimeout(() => frame.setAttribute(PLAYING, ""), BEZEL_MS);
       }

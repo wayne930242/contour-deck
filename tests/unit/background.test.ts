@@ -99,6 +99,7 @@ describe("youtubeUrl", () => {
       controls: "0",
       rel: "0",
       disablekb: "1",
+      cc_load_policy: "0",
       enablejsapi: "1",
       start: "30",
       origin: "https://wayneh.tw",
