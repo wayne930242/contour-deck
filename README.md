@@ -13,7 +13,7 @@ Outline-first slide decks on real DOM.
 A deck is blocks, slides, and pages: it opens on an outline of every block, a block opens into a left-right track of slides, and each slide scrolls down one page at a time.
 The core is plain TypeScript with no runtime dependency (7 KB of JavaScript and 3 KB of CSS, gzipped); the phone remote is a separate module that loads on first use.
 
-Status: 0.3.1 on npm. It holds the deck (M1), the M2 client (phone remote, laser pointer, drawing, tilt pointing, and a presenter window, see [Remote](#remote); the relay it talks to is a separate small service, [docs/PROTOCOL.md](docs/PROTOCOL.md)), and, since 0.3.0, an opt-in structure for the Markdown plugins that reads blocks, slides, and pages from headings ([docs/PLUGINS.md](docs/PLUGINS.md#headings-mode)); 0.3.1 lets HTML comments stand anywhere in it and titles a heading-less block by its first slide. Live demo: https://wayne930242.github.io/contour-deck/
+Status: 0.5.0 on npm. It holds the deck (M1), the M2 client (phone remote, laser pointer, drawing, tilt pointing, and a presenter window, see [Remote](#remote); the relay it talks to is a separate small service, [docs/PROTOCOL.md](docs/PROTOCOL.md)), and, since 0.3.0, an opt-in structure for the Markdown plugins that reads blocks, slides, and pages from headings ([docs/PLUGINS.md](docs/PLUGINS.md#headings-mode)); 0.3.1 lets HTML comments stand anywhere in it and titles a heading-less block by its first slide. 0.4.0 adds the depth desk (3D outline); 0.5.0 adds page backgrounds, `::background` with an image, a video file, or YouTube behind a dark scrim ([docs/PLUGINS.md](docs/PLUGINS.md#page-backgrounds)). Live demo: https://wayne930242.github.io/contour-deck/
 The design is in [docs/DESIGN.md](docs/DESIGN.md) (Traditional Chinese); the HTML the core reads is in [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ## 看看它怎麼動
@@ -67,7 +67,7 @@ const structure = file => file.data.astro?.frontmatter?.slideOptions?.structure;
 // rehypePlugins: […, [rehypeDeck, { match: isDeck, structure }]]
 ```
 
-By default a `---` starts a slide and `::vertical` a page; [docs/PLUGINS.md](docs/PLUGINS.md) has both sets of rules.
+By default a `---` starts a slide and `::vertical` a page; [docs/PLUGINS.md](docs/PLUGINS.md) has both sets of rules and the directives, `::background` among them.
 
 ```astro
 ---
@@ -220,6 +220,7 @@ The core removes both parameters in `destroy()` and leaves the others alone.
 
 - Set `--ct-bg`, `--ct-fg`, `--ct-accent`, `--ct-accent-fg`, `--ct-border`, `--ct-muted`, `--ct-mono`, and `--ct-measure` on `.ct-app`.
   By default the colours follow the site's `--background`, `--foreground`, `--accent`, `--accent-foreground`, `--border`, and `--muted-foreground`.
+- A page with `::background` uses light text over its scrim in both themes: set `--ct-media-fg`, `--ct-media-muted`, and `--ct-media-border` to change it (see [docs/PLUGINS.md](docs/PLUGINS.md#page-backgrounds)).
 - The depth desk (3D outline) reads `--ct-row-depth` (how far back each row stands, default `260px`) and `--ct-row-rise` (how much higher, default `26px`) on `.ct-app`.
 - A page keeps its content in a centred column of `--ct-measure` through its own side padding, so margins and widths the host sets on the content stay as written.
   The type of a page follows the size of the stage and never goes below `1rem`; sizes the host writes in `em` follow it, sizes in `rem` do not.
@@ -233,11 +234,11 @@ The core removes both parameters in `destroy()` and leaves the others alone.
 ```text
 src/core/      the core: model, stops, gestures, navigator, outline, rail, notes, transitions, deck
 src/remote/    contour-deck/remote: protocol, transports, pairing, clock, tilt math, QR, and the three views
-src/remark/    Markdown directives (block, vertical, summary, build)
+src/remark/    Markdown directives (block, vertical, summary, build, slide, background)
 src/rehype/    builds the deck > block > slide > page HTML; headings.ts is the reader of `structure: "headings"`
 src/astro/     Deck.astro and the host script it runs (also contour-deck/host)
 styles/        index.css is the entry of contour-deck/style.css
-demo/          a plain-HTML deck that follows the contract, and media.html (clips and stills)
+demo/          a plain-HTML deck that follows the contract, background.html (page backgrounds), and media.html (clips and stills)
 docs/media/    GIF, mp4, and PNG made by scripts/media.mjs (not in the npm package)
 tests/unit/    Vitest, tests/unit/**/*.test.ts
 tests/browser/ Playwright, tests/browser/**/*.spec.ts, run against demo/; relay-stub.ts is the relay of docs/PROTOCOL.md in the test process

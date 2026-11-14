@@ -146,6 +146,24 @@
 .ct-stage [data-ct-step]:not([data-ct-on]) { opacity: 0; transform: translateY(.45em); }
 .ct-stage tr[data-ct-step]:not([data-ct-on]) { visibility: collapse; }
 
+/* ---- page background: media behind the content, a black scrim between them, light text on top in either theme ---- */
+.ct-app .ct-stage [data-ct-page]:has(> [data-ct-background]) {
+  --ct-fg: var(--ct-media-fg, #f2f2ed);
+  --ct-muted: var(--ct-media-muted, #c9c9c3);
+  --ct-border: var(--ct-media-border, rgb(255 255 255 / .32));
+  /* the common site tokens the default theme reads, so the host's own content follows */
+  --foreground: var(--ct-fg); --muted-foreground: var(--ct-muted); --border: var(--ct-border);
+  position: relative; isolation: isolate; color-scheme: dark; color: var(--ct-fg);
+}
+.ct-app .ct-stage [data-ct-background] { display: block; position: absolute; inset: 0; z-index: -1; margin: 0; overflow: hidden; background: #000; pointer-events: none; container-type: size; }
+.ct-app .ct-stage [data-ct-background]::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / var(--ct-dim, .5)); }
+.ct-app .ct-stage [data-ct-background] > :is(img, video) { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; margin: 0; aspect-ratio: auto; object-fit: cover; object-position: var(--ct-position, center); transition: opacity .6s var(--ct-ease); }
+/* YouTube: a 16:9 frame scaled past cover, so the title bar and the logo stay outside the stage */
+.ct-app .ct-stage [data-ct-background] > iframe { position: absolute; left: 50%; top: 50%; width: max(100cqw, 100cqh * 16 / 9); height: max(100cqh, 100cqw * 9 / 16); border: 0; transform: translate(-50%, -50%) scale(1.35); pointer-events: none; transition: opacity .6s var(--ct-ease); }
+.ct-app .ct-stage [data-ct-background] > .ct-bgm:not([data-ct-playing]) { opacity: 0; }
+.ct-app .ct-stage [data-ct-credit] { position: absolute; left: 1rem; bottom: .7rem; z-index: 1; max-width: 60%; margin: 0; font: 400 clamp(.6rem, 1.1cqw, .8rem)/1.3 system-ui, sans-serif; color: rgb(255 255 255 / .72); text-align: left; text-shadow: 0 1px 2px rgb(0 0 0 / .6); opacity: 1; }
+.ct-app .ct-stage [data-ct-background]:has(> .ct-bgm[data-ct-playing]) > img { opacity: 0; }
+
 .ct-pager { display: flex; flex-direction: column; gap: 5px; position: absolute; right: .55rem; top: 50%; transform: translateY(-50%); z-index: 4; }
 .ct-pager i { display: block; width: 5px; height: 14px; background: var(--ct-border); }
 .ct-pager i[data-on] { background: linear-gradient(var(--ct-accent) calc(var(--f, 1) * 100%), color-mix(in srgb, var(--ct-accent) 30%, var(--ct-bg)) 0); }

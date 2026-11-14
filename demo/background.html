@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>contour-deck demo｜頁面背景</title>
+<!--
+  Page backgrounds (::background, docs/CONTRACT.md): an image, a video file looped from 1 s to 4 s,
+  a YouTube embed over its poster, and a page without one. Build the assets first: pnpm build.
+  The media in bg/ is generated: an ffmpeg gradient and test pattern.
+-->
+<link rel="stylesheet" href="assets/contour-deck.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main class="doc">
+  <header class="doc-head">
+    <h1>頁面背景</h1>
+    <button id="start">START</button>
+    <nav class="doc-decks" aria-label="示範簡報">
+      <a href="./">框架示範</a>
+      <a href="background.html" aria-current="page">頁面背景</a>
+    </nav>
+  </header>
+
+  <div data-ct-deck data-title="頁面背景">
+    <section data-ct-block data-title="背景" data-short="背">
+      <section data-ct-slide id="image" data-title="圖片">
+        <section data-ct-page>
+          <div data-ct-background style="--ct-dim: 0.6"><img src="bg/board.jpg" alt="" decoding="async"><small data-ct-credit>漸層：ffmpeg gradients, CC0</small></div>
+          <h2>圖片</h2>
+          <p>整頁鋪滿，黑色遮罩 0.6，文字在兩種主題下都用淺色。</p>
+        </section>
+      </section>
+      <section data-ct-slide id="video" data-title="影片檔">
+        <section data-ct-page>
+          <div data-ct-background data-video="bg/clip.webm" data-start="1" data-end="4" style="--ct-dim: 0.4"><img src="bg/clip.jpg" alt="" decoding="async"></div>
+          <h2>影片檔</h2>
+          <p>靜音自動播放，1 到 4 秒循環；開始播放前先墊著截圖。</p>
+        </section>
+      </section>
+      <section data-ct-slide id="youtube" data-title="YouTube">
+        <section data-ct-page>
+          <div data-ct-background data-youtube="aqz-KE-bpKQ" data-start="30" data-end="55" style="--ct-dim: 0.6"><img src="bg/board.jpg" alt="" decoding="async"></div>
+          <h2>YouTube</h2>
+          <p>無 cookie 嵌入，沒有控制列；連不上時截圖留著。</p>
+        </section>
+      </section>
+      <section data-ct-slide id="plain" data-title="沒有背景">
+        <section data-ct-page>
+          <h2>沒有背景</h2>
+          <p>一般頁面照網站主題。</p>
+        </section>
+      </section>
+    </section>
+  </div>
+</main>
+
+<script src="assets/contour-deck.js"></script>
+<script>
+  (function () {
+    var root = document.querySelector("[data-ct-deck]");
+    var demo = (window.contourDemo = { deck: null, remote: null, events: [] });
+    function open(options) {
+      if (demo.deck) return;
+      demo.deck = ContourDeck.createDeck(root, options);
+      demo.deck.on("exit", close);
+    }
+    function close() {
+      demo.deck.destroy();
+      demo.deck = null;
+    }
+    demo.open = open;
+    demo.close = close;
+    document.getElementById("start").addEventListener("click", function () { open(); });
+    var view = new URLSearchParams(location.search).get("view");
+    if (view === "deck" || view === "notes") open();
+  })();
+</script>
+</body>
+</html>

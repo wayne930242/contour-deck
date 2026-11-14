@@ -32,9 +32,39 @@ When both run on the same file (one unified pipeline), different structures make
 | `:::build` … `:::` | `data-ct-step` on each list item, table body row, or other block inside; the wrapper is removed | the same |
 | `::block{title="三、翻頁怎麼運作" minutes=5 kind=appendix short=三 #id}` | starts a block. `title` is required. | sets the attributes of the block it stands in. Every attribute is optional. |
 | `::slide{#tradeoff}` | the slide's `id` (otherwise `s-<block>-<slide>`) | the same |
+| `::background{image="/img/board.jpg" dim=0.6}` | `<div data-ct-background>`, moved to be the first child of the page that holds it (see Page backgrounds) | the same |
 
 A directive in the wrong form (`::summary`, `:::vertical`), with an unknown attribute, or with an invalid value is an error, not an empty box.
 Footnotes and MDX ESM nodes stay outside the deck element.
+
+## Page backgrounds
+
+```md
+::background{image="/img/board.jpg" dim=0.6 credit="Photo: A. B., CC BY-SA 4.0"}
+::background{video="https://example.com/clip.mp4" start=12 end=40 poster="/img/clip.jpg" dim=0.5}
+::background{youtube="VIDEO_ID" start=30 end=55 poster="/img/frame.jpg" dim=0.6}
+```
+
+| Attribute | Value |
+| --- | --- |
+| `image`, `video`, `youtube` | Exactly one: an image URL, a video file URL, or a YouTube video. `youtube` takes the 11-character id or a `watch?v=`, `youtu.be/`, `embed/`, `shorts/`, or `live/` URL, and writes the id. |
+| `start`, `end` | Seconds, for `video` and `youtube`. Playback loops from `start` (default 0) to `end` (default the end of the video). |
+| `poster` | For `video` and `youtube`: the still shown until playback starts, and kept when it never does (offline venue, blocked YouTube, reduced motion). Recommended for `youtube`. |
+| `dim` | Opacity of the black scrim over the media, 0 to 1, default `0.5`. Use `0.8` or more under tables and long text. |
+| `position` | `object-position` of the still and the video, default `center`, for example `50% 20%`. |
+| `credit` | Plain text (Markdown is not read) shown small in the bottom left corner of the stage over the scrim, and under the picture in the document. For attribution such as CC BY-SA. |
+
+One background per page; it applies to the page it is written on, wherever in the page.
+A source missing or doubled, an empty value, a value out of range, `poster`/`start`/`end` on an image, or an unknown attribute is an error.
+
+On the stage the media fills the page behind its content (`object-fit: cover`), the scrim sits between them, and the page's text turns light in both themes:
+the page sets `--ct-fg`, `--ct-muted`, `--ct-border` and the site tokens `--foreground`, `--muted-foreground`, `--border` to `--ct-media-fg`, `--ct-media-muted`, `--ct-media-border` (defaults `#f2f2ed`, `#c9c9c3`, white at 32 %).
+A host whose content uses other colour tokens restyles `.ct-stage [data-ct-page]:has(> [data-ct-background])`.
+
+A video plays muted, without controls, only while its page is the current page of the stage; the core removes it when the page stops being current, so a hidden page never plays.
+The still fades out only once playback has actually started.
+YouTube plays from `youtube-nocookie.com`, muted, without controls, related videos, or keyboard, and takes no pointer; the frame is scaled past cover so the title bar and logo stay outside the stage.
+The document, the presenter window, the phone remote, and the outline show the still only, and so does the stage under `prefers-reduced-motion: reduce`.
 
 ## Slides and pages
 
@@ -123,11 +153,11 @@ Slides and pages:
 
 - A top-level `##` starts a slide.
 - Content before the block's first `##` is the block's first slide: a title slide, or a divider such as `# 拆解`.
-  An opening that holds nothing but a `####` kicker, notes, `::block`, `::slide`, and HTML comments is not a slide of its own: it opens the first `##` slide.
+  An opening that holds nothing but a `####` kicker, notes, `::background`, `::block`, `::slide`, and HTML comments is not a slide of its own: it opens the first `##` slide.
 - A top-level `###` starts a further page of the current slide.
   The exception is a `###` right under the slide's `##` with no content between them: the two head the first page together.
   So `##`, `###`, text, `###`, text is a slide of two pages, not of three with a first page that holds only the title.
-  Notes, `::block`, `::slide`, and HTML comments are not content for this rule or the one above; other directives, such as `:::build`, are.
+  Notes, `::background`, `::block`, `::slide`, and HTML comments are not content for this rule or the one above; other directives, such as `:::build`, are.
 - A `###` before the block's first `##` starts a page of the block's first slide.
 - Only top-level headings count.
   A heading inside a list, a quote, or a container such as `:::grid` is page content, and so are `####` and deeper and a `#` after the block's first `##`.
@@ -137,7 +167,7 @@ Slides and pages:
 
 Directives:
 
-- `:::summary` and `:::build` work as in the default structure, on the page they are written on.
+- `:::summary`, `:::build`, and `::background` work as in the default structure, on the page they are written on.
 - `::slide{#id}` names the slide it stands in: write it under the slide's heading.
   Between a slide's content and the next `##` it is an error, because it reads as either slide's.
 - `::vertical` is an error that says to write `###`.

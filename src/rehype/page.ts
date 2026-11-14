@@ -1,5 +1,7 @@
-/** One page: its notes, its steps, its reading time. */
-import { NOTES, MARK_BUILD } from "../shared/markers.js";
+/** One page: its background, its notes, its steps, its reading time. */
+import { BACKGROUND, NOTES, MARK_BUILD } from "../shared/markers.js";
+import type { DeckFile } from "../shared/structure.js";
+import { ORIGIN } from "./draft.js";
 import {
   element,
   hasClass,
@@ -12,22 +14,21 @@ import {
 } from "./hast.js";
 import { PAGE_MS, readingMs, STEP_MS } from "./reading.js";
 
-function isNotes(node: HastNode): boolean {
-  return isElement(node) && NOTES in node.properties;
-}
+const isNotes = (node: HastNode): boolean => isElement(node) && NOTES in node.properties;
+const isBackground = (node: HastNode): boolean => isElement(node) && BACKGROUND in node.properties;
 
 function isStep(node: HastNode): boolean {
   return isElement(node) && "dataCtStep" in node.properties;
 }
 
-/** Removes every notes element, at any depth, and returns them in document order. */
-function takeNotes(children: HastNode[], notes: Element[]): HastNode[] {
+/** Removes every element `is` matches, at any depth, into `taken` in document order. */
+function take(children: HastNode[], is: (node: HastNode) => boolean, taken: Element[]): HastNode[] {
   return children.filter(node => {
-    if (isNotes(node)) {
-      notes.push(node as Element);
+    if (is(node)) {
+      taken.push(node as Element);
       return false;
     }
-    if (node.children) node.children = takeNotes(node.children, notes);
+    if (node.children) node.children = take(node.children, is, taken);
     return true;
   });
 }
@@ -79,13 +80,18 @@ function staggerIndex(content: HastNode[]): void {
   });
 }
 
-export function buildPage(children: HastNode[]): Element {
+/** The page: its background first, then the content, then the notes, wherever each was written in the page. */
+export function buildPage(children: HastNode[], file: DeckFile): Element {
   const notes: Element[] = [];
-  const content = applyBuilds(takeNotes(children, notes)).filter(node => !isBlank(node));
+  const backgrounds: Element[] = [];
+  const rest = take(take(children, isNotes, notes), isBackground, backgrounds);
+  if (backgrounds.length > 1) file.fail("a page holds two ::background directives", backgrounds[1], ORIGIN);
+  const content = applyBuilds(rest).filter(node => !isBlank(node));
   staggerIndex(content);
 
   const withoutSteps = content.map(node => textOf(node, isStep)).join("");
   return element("section", { dataCtPage: true, dataMs: readingMs(withoutSteps, PAGE_MS) }, [
+    ...backgrounds,
     ...content,
     ...notes,
   ]);

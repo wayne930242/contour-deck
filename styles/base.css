@@ -1,3 +1,8 @@
 /* Without the script the deck is a plain document; only the speaker notes are hidden. */
 [data-ct-notes] { display: none; }
 html[data-ct-open] { overflow: hidden; }
+/* A page background reads as a picture at the top of its page: the image or the poster, never the video. */
+[data-ct-background] { margin: 0 0 1em; }
+[data-ct-background]:not(:has(> img, > [data-ct-credit])) { display: none; }
+[data-ct-credit] { display: block; margin-top: .3em; font-size: .75em; opacity: .7; }
+[data-ct-background] > img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: var(--ct-position, center); }

@@ -11,6 +11,9 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
   ".json": "application/json",
 };
 
@@ -28,6 +31,21 @@ createServer((request, response) => {
     response.writeHead(404).end("not found");
     return;
   }
-  response.writeHead(200, { "content-type": types[extname(file)] ?? "application/octet-stream", "cache-control": "no-store" });
+  const headers = { "content-type": types[extname(file)] ?? "application/octet-stream", "cache-control": "no-store", "accept-ranges": "bytes" };
+  // Byte ranges, so a video can seek (page backgrounds loop between start and end).
+  const size = statSync(file).size;
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range ?? "");
+  if (range && (range[1] || range[2])) {
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start > end || start >= size) {
+      response.writeHead(416, { "content-range": `bytes */${size}` }).end();
+      return;
+    }
+    response.writeHead(206, { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1 });
+    createReadStream(file, { start, end }).pipe(response);
+    return;
+  }
+  response.writeHead(200, { ...headers, "content-length": size });
   createReadStream(file).pipe(response);
 }).listen(port, "127.0.0.1", () => console.log(`contour-deck demo: http://127.0.0.1:${port}/demo/`));

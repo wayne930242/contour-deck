@@ -1,4 +1,5 @@
 /** createDeck: builds the shell around a contract deck and wires the stage, the outline, and the input. */
+import { createBackgrounds } from "./background.js";
 import { clamp, h } from "./dom.js";
 import { createWheelGate } from "./gestures.js";
 import { defaultLabels } from "./labels.js";
@@ -27,6 +28,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const reduced = () => motion.matches;
   const smooth = (): ScrollBehavior => (reduced() ? "auto" : "smooth");
+  const backgrounds = createBackgrounds(reduced);
   const abort = new AbortController();
   const { signal } = abort;
   const listeners = { change: new Set<(change: DeckChange) => void>(), exit: new Set<() => void>(), destroy: new Set<() => void>() };
@@ -111,6 +113,7 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
     };
     if (current) fire("ct:leave", current);
     current = page && { page, at: pos };
+    backgrounds.show(page?.el ?? null);
     if (current) fire("ct:enter", current);
   }
 

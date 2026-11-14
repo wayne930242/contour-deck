@@ -3,16 +3,16 @@
  *
  * - A top-level `---` starts a block.
  * - A top-level `##` starts a slide. What stands before a block's first `##` is the block's first
- *   slide (a title, a `# 拆解` divider), unless it is nothing but a `####` kicker, notes,
+ *   slide (a title, a `# 拆解` divider), unless it is nothing but a `####` kicker, notes, `::background`,
  *   `::block`/`::slide`, and HTML comments: those open the first `##` slide.
  * - A top-level `###` starts a further page of the slide, unless it stands right under the `##`
- *   with no content between them (notes, `::block`/`::slide`, and HTML comments are not content):
+ *   with no content between them (notes, `::background`, `::block`/`::slide`, and HTML comments are not content):
  *   then both head the first page.
  * - A block is titled by the first `#` or `####` before its first `##` or `###`; the heading stays
  *   where it is. `::block{…}` anywhere at the block's top level overrides what it names.
  * - Headings inside other elements, `####` and deeper, and a `#` after the first `##` are content.
  */
-import { MARK_BLOCK, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
+import { isAside, MARK_BLOCK, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
 import { NO_VERTICAL, type DeckFile } from "../shared/structure.js";
 import { blockMarkOf, isRule, leadTitle, ORIGIN, splitAt, type BlockMark, type Group, type SlideDraft } from "./draft.js";
 import { isBlank, isElement, markOf, plainText, type Element, type HastNode } from "./hast.js";
@@ -105,7 +105,7 @@ function readBlock(nodes: HastNode[], file: DeckFile): BlockDraft | undefined {
       opening = false;
     } else {
       slide.pages[slide.pages.length - 1].push(node);
-      if (NOTES in node.properties) continue;
+      if (isAside(node.properties)) continue;
       if (opening && (node.tagName === "h1" || node.tagName === "h4")) heading ??= plainText(node) || undefined;
       if (bare === "opening" && node.tagName === "h4" && !kicker) kicker = true;
       else bare = undefined;

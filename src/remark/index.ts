@@ -9,14 +9,20 @@
  * | `::vertical`                                     | page break marker                        |
  * | `::block{title="…" minutes=5 kind=appendix}`     | block marker                             |
  * | `::slide{#id}`                                   | marker that gives the slide its id       |
+ * | `::background{image="…" dim=0.6}`                | `<div data-ct-background>` (see below)   |
  *
  * A directive written in the wrong form (`::summary` for `:::summary`) is an error here,
  * not an empty box, and so is an unknown attribute.
  *
+ * `::background` takes exactly one source, `image`, `video` (a file), or `youtube` (an id or a
+ * watch, youtu.be, embed, or shorts URL, written out as the id), and `poster`, `start`, `end`,
+ * `dim`, `position`, `credit` (plain text, shown small in a bottom corner). The element holds the still (the image, else the poster) as an `<img>`;
+ * the core plays the video over it on the stage.
+ *
  * With `structure: "headings"` the pages come from `###` headings, so `::vertical` is an error,
  * and `::block` needs no `title`: the block has its heading.
  */
-import { MARK, MARK_BLOCK, MARK_BUILD, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
+import { BACKGROUND, MARK, MARK_BLOCK, MARK_BUILD, MARK_SLIDE, MARK_VERTICAL, NOTES } from "../shared/markers.js";
 import { NO_VERTICAL, recordStructure, structureOf, type DeckFile, type Structure, type StructureOption } from "../shared/structure.js";
 
 export type { DeckFile, Structure, StructureOption };
@@ -26,7 +32,7 @@ interface MdNode {
   name?: string;
   attributes?: Record<string, string | null | undefined> | null;
   children?: MdNode[];
-  data?: { hName?: string; hProperties?: Record<string, unknown> };
+  data?: { hName?: string; hProperties?: Record<string, unknown>; hChildren?: unknown[] };
 }
 
 export interface RemarkDeckOptions {
@@ -46,7 +52,104 @@ interface Directive {
 
 const ORIGIN = "contour-deck:remark";
 
+const SECONDS = /^\d+(\.\d+)?$/;
+const YOUTUBE_ID = /^[\w-]{11}$/;
+const YOUTUBE_HOSTS = /^(?:www\.|m\.)?(?:youtube\.com|youtube-nocookie\.com|youtu\.be)$/;
+
+/** The 11-character id of a YouTube id or URL, or `undefined`. */
+export function youtubeId(value: string): string | undefined {
+  const text = value.trim();
+  if (YOUTUBE_ID.test(text)) return text;
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return undefined;
+  }
+  if (!YOUTUBE_HOSTS.test(url.hostname)) return undefined;
+  const id = url.hostname.endsWith("youtu.be")
+    ? url.pathname.slice(1)
+    : (url.searchParams.get("v") ?? /^\/(?:embed|shorts|live)\/([^/]+)/.exec(url.pathname)?.[1]);
+  return id && YOUTUBE_ID.test(id) ? id : undefined;
+}
+
+function background(node: MdNode, attributes: Record<string, string>, file: DeckFile): MdNode["data"] {
+  const fail = (reason: string): never => file.fail(`::background ${reason}`, node, ORIGIN);
+  const sources = (["image", "video", "youtube"] as const).filter(name => attributes[name] !== undefined);
+  if (sources.length !== 1) {
+    fail(
+      sources.length
+        ? `takes one source, got ${sources.join(" and ")}`
+        : 'needs a source: image="…", video="…", or youtube="…"'
+    );
+  }
+  const [source] = sources;
+  const url = (name: string): string | undefined => {
+    if (attributes[name] === undefined) return undefined;
+    const value = attributes[name].trim();
+    if (!value) fail(`${name} is empty`);
+    return value;
+  };
+
+  const properties: Record<string, unknown> = { [BACKGROUND]: true };
+  const style: string[] = [];
+  if (source === "youtube") {
+    const id = youtubeId(attributes.youtube);
+    if (!id) fail(`youtube must be an 11-character video id or a YouTube URL, got "${attributes.youtube}"`);
+    properties.dataYoutube = id;
+  } else if (source === "video") {
+    properties.dataVideo = url("video");
+  }
+  if (source === "image") {
+    for (const name of ["poster", "start", "end"]) {
+      if (attributes[name] !== undefined) fail(`${name} is for video and youtube, not image`);
+    }
+  }
+
+  const seconds = (name: string): number | undefined => {
+    const value = attributes[name];
+    if (value === undefined) return undefined;
+    if (!SECONDS.test(value)) fail(`${name} must be seconds, a number of 0 or more, got "${value}"`);
+    return Number(value);
+  };
+  const start = seconds("start");
+  const end = seconds("end");
+  if (end !== undefined && !(end > (start ?? 0))) fail(`end (${end}) must be after start (${start ?? 0})`);
+  if (start) properties.dataStart = String(start);
+  if (end !== undefined) properties.dataEnd = String(end);
+
+  if (attributes.dim !== undefined) {
+    const dim = Number(attributes.dim);
+    if (!/^(\d+(\.\d*)?|\.\d+)$/.test(attributes.dim) || !(dim >= 0 && dim <= 1)) {
+      fail(`dim must be a number from 0 to 1, got "${attributes.dim}"`);
+    }
+    style.push(`--ct-dim: ${dim}`);
+  }
+  if (attributes.position !== undefined) {
+    const position = attributes.position.trim();
+    if (!/^[a-z0-9.%\s-]+$/i.test(position)) fail(`position must be an object-position such as "center" or "50% 20%", got "${attributes.position}"`);
+    style.push(`--ct-position: ${position}`);
+  }
+  if (style.length) properties.style = style.join("; ");
+
+  const still = source === "image" ? url("image") : url("poster");
+  const children: unknown[] = still
+    ? [{ type: "element", tagName: "img", properties: { src: still, alt: "", decoding: "async" }, children: [] }]
+    : [];
+  if (attributes.credit !== undefined) {
+    const credit = attributes.credit.replace(/\s+/g, " ").trim();
+    if (!credit) fail("credit is empty");
+    children.push({ type: "element", tagName: "small", properties: { dataCtCredit: true }, children: [{ type: "text", value: credit }] });
+  }
+  return { hName: "div", hProperties: properties, hChildren: children };
+}
+
 const DIRECTIVES: Record<string, Directive> = {
+  background: {
+    form: "leaf",
+    attributes: ["image", "video", "youtube", "poster", "start", "end", "dim", "position", "credit"],
+    hast: (node, attributes, file) => background(node, attributes, file),
+  },
   summary: {
     form: "container",
     attributes: [],

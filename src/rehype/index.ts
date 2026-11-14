@@ -204,7 +204,7 @@ function assemble(groups: Group[], file: DeckFile): Element[] {
           dataTitle: slideTitle(draft.pages, `Slide ${ordinal.replace("-", ".")}`),
           ...(draft.legacy === undefined ? {} : { dataLegacy: draft.legacy, dataLegacyV: draft.legacyV }),
         },
-        draft.pages.map(buildPage)
+        draft.pages.map(page => buildPage(page, file))
       );
     });
     return element("section", properties, sections);

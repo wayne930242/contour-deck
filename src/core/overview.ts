@@ -37,7 +37,7 @@ function sketchType(el: HTMLElement): string {
 function sketch(page: HTMLElement): HTMLElement {
   const box = h("span", "ct-sk");
   for (const el of page.children) {
-    if (!(el instanceof HTMLElement) || el.matches("[data-ct-notes],h1,h2,h3,h4,h5,h6")) continue;
+    if (!(el instanceof HTMLElement) || el.matches("[data-ct-notes],[data-ct-background],h1,h2,h3,h4,h5,h6")) continue;
     const type = sketchType(el);
     const mark = h("i", `ct-g ct-g-${type}`);
     const cells = type === "nums" ? 2 : Math.min(el.children.length, 4);
