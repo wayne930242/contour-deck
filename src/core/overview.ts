@@ -175,7 +175,7 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
   new ResizeObserver(() => {
     fitFlat();
     api.ring(...ringAt, true);
-  }).observe(el);
+  }).observe(el, { box: "border-box" });
 
   const api: Overview = {
     el,

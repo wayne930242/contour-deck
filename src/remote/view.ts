@@ -90,7 +90,8 @@ export function createPreview(root: HTMLElement): Preview {
   const sheet = el.appendChild(h("div", "ct-stage", "", { "aria-hidden": "true" }));
   const wrap = sheet.appendChild(h("div", `ct-pvw ${root.className}`.trim()));
   // The copy stands in a stand-in of the deck root, so a host's rules scoped to `[data-ct-deck]` lay it out as on the stage.
-  for (const { name, value } of Array.from(root.attributes)) if (name !== "id" && name !== "class") wrap.setAttribute(name, value);
+  // Only its data and language: no id, style, hidden, handlers or focus order of the live root.
+  for (const { name, value } of Array.from(root.attributes)) if (name.startsWith("data-") || name === "lang" || name === "dir") wrap.setAttribute(name, value);
   sheet.inert = true;
   let width = SHEET;
   const fit = () => el.style.setProperty("--ct-k", String(el.clientWidth / width));

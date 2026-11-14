@@ -155,6 +155,10 @@ describe("h1 divider fallback (a deck with no #### kicker)", () => {
     expect([appendix.title, appendix.short, appendix.kind]).toEqual(["附錄 A｜補充", "A", "appendix"]);
   });
 
+  it("still starts a block when the divider has an English line under it", () => {
+    expect(titles(`# 甲\n\n:en[Part A]\n\n---\n\n## 一\n\n---\n\n# 乙\n\n:en[Part B]\n\n---\n\n## 二`)).toEqual(["甲", "乙"]);
+  });
+
   it("yields to #### kickers and to ::block", () => {
     expect(titles(`#### 一、問題\n\n## 甲\n\n---\n\n# 拆解\n\n---\n\n## 乙`)).toEqual(["一、問題"]);
     expect(titles(`::block{title="整段"}\n\n## 甲\n\n---\n\n# 拆解\n\n---\n\n## 乙`)).toEqual(["整段"]);

@@ -1,12 +1,12 @@
 /** Titles and short labels the plugin derives when the author gives none. */
 import { isAside } from "../shared/markers.js";
-import { isElement, plainText, walkElements, type Element, type HastNode } from "./hast.js";
+import { isElement, isEnglishParagraph, plainText, walkElements, type Element, type HastNode } from "./hast.js";
 
 const SNIPPET_CHARS = 40;
 
-/** The element children of a page, not counting its notes and its background. */
+/** The element children of a page, not counting its notes, its background, and a paragraph that is only an English line. */
 function contentElements(page: HastNode[]): Element[] {
-  return page.filter(isElement).filter(node => !isAside(node.properties));
+  return page.filter(isElement).filter(node => !isAside(node.properties) && !isEnglishParagraph(node));
 }
 
 /** `#### 三、主要問題` style kicker: the first content element of the page is an `h4`. */

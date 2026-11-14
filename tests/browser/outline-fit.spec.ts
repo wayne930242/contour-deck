@@ -70,3 +70,17 @@ test("the depth desk keeps its own sizes", async ({ page }) => {
   await expect(page.locator(".ct-app")).toHaveAttribute("data-ct-3d", "");
   await expect.poll(async () => (await sizes(page)).tile).toBeCloseTo(15.2, 1);
 });
+
+test("fitting the outline raises no ResizeObserver loop error", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => message.text().startsWith("window-error") && errors.push(message.text()));
+  await page.addInitScript(() => window.addEventListener("error", e => console.error("window-error " + e.message)));
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/demo/frames.html?view=deck");
+  await page.keyboard.press("Escape");
+  await expectAt(page, "overview 2.1.1 +0");
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});

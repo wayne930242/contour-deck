@@ -292,16 +292,17 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
   ];
   // Scrolling within a tall page changes no position, but the preview must follow it.
   let scrollTimer = 0;
+  const scrollWatch = new AbortController();
   stage.addEventListener(
     "scroll",
     () => {
       if (scrollTimer) return;
       scrollTimer = window.setTimeout(() => {
         scrollTimer = 0;
-        if (!closed && deck.state.mode === "stage") sendState();
+        if (alive && deck.state.mode === "stage") sendState();
       }, 120);
     },
-    { capture: true, passive: true }
+    { capture: true, passive: true, signal: scrollWatch.signal }
   );
   const interval = window.setInterval(() => {
     pairing.expire();
@@ -329,6 +330,8 @@ function start(deck: Deck, root: HTMLElement, options: RemoteOptions, { app, sta
       if (!alive) return;
       alive = false;
       clearInterval(interval);
+      scrollWatch.abort();
+      clearTimeout(scrollTimer);
       stops.forEach(stop => stop?.());
       local.close();
       wan?.close();
