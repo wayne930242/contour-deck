@@ -82,6 +82,48 @@ test("deep links reach both, and the API can go to them from the outline", async
   await expectAt(page, "stage 1.1.1 +0");
 });
 
+test("the outline has a slim entry to the opening before the first block and to the closing after the last, reached by the arrow keys", async ({ page }) => {
+  await page.goto(`${DEMO}?view=deck`);
+  await page.keyboard.press("Escape");
+  await expectAt(page, "overview 2.1.1 +0");
+  const opening = page.locator(".ct-entry[data-kind='opening']");
+  const closing = page.locator(".ct-entry[data-kind='closing']");
+  await expect(opening).toHaveText(/開場\s*斷頭神論/);
+  await expect(closing).toHaveText(/致謝\s*銘謝聆聽/);
+  // Before the first tile and after the last, and slimmer than a tile.
+  const order = await page.locator(".ct-plane > :is(.ct-entry, .ct-tile:not([hidden]))").evaluateAll(els => els.map(el => el.className));
+  expect(order).toEqual(["ct-entry", "ct-tile", "ct-tile", "ct-tile", "ct-entry"]);
+  const [entryHeight, tileHeight] = await Promise.all([opening.evaluate(el => (el as HTMLElement).offsetHeight), page.locator(".ct-tile:not([hidden])").first().evaluate(el => (el as HTMLElement).offsetHeight)]);
+  expect(entryHeight).toBeLessThan(tileHeight / 2);
+
+  await expect(page.locator(".ct-thumb[data-ct-go='1,0,0']")).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(opening).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expectAt(page, "stage 1.1.1 +0");
+
+  await page.keyboard.press("Escape");
+  await expectAt(page, "overview 2.1.1 +0");
+  await page.locator(".ct-thumb[data-ct-go='3,0,0']").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(closing).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(closing).toBeFocused();
+  await page.keyboard.press(" ");
+  await expectAt(page, "stage 5.1.1 +0");
+
+  // A click opens it too, and the depth desk leaves the entries out.
+  await page.keyboard.press("Escape");
+  await expectAt(page, "overview 3.1.1 +0");
+  await opening.click();
+  await expectAt(page, "stage 1.1.1 +0");
+  await page.keyboard.press("Escape");
+  await expectAt(page, "overview 2.1.1 +0");
+  await page.keyboard.press("3");
+  await expect(opening).toBeHidden();
+  await expect(closing).toBeHidden();
+});
+
 test("on the depth desk the talk's first block is the first row", async ({ page }) => {
   await page.goto(`${DEMO}?view=deck`);
   await page.keyboard.press("Escape");

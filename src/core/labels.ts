@@ -11,6 +11,8 @@ export const defaultLabels: Labels = {
   remote: "遙控",
   here: "目前位置",
   appendix: "書面",
+  opening: "開場",
+  closing: "致謝",
   rail: "整份簡報的位置",
   noNotes: "（這一頁沒有講稿）",
   slides: count => `${count} 張`,

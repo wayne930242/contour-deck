@@ -670,7 +670,9 @@ export function createDeck(root: HTMLElement, options: DeckOptions = {}): Deck {
   );
 
   function focusThumb(step: number) {
-    const all = overview.thumbs.slice(first, last + 1).flat();
+    // On the flat outline the entries to the opening and the closing stand before the first thumbnail and after the last.
+    const { opening, closing } = depthOn() ? {} : overview.entries;
+    const all = [...(opening ? [opening] : []), ...overview.thumbs.slice(first, last + 1).flat(), ...(closing ? [closing] : [])];
     const focused = all.indexOf(document.activeElement as HTMLButtonElement);
     all[focused < 0 ? all.indexOf(overview.thumbs[pos.b][pos.s]) : clamp(focused + step, 0, all.length - 1)].focus({ preventScroll: depthOn() });
   }

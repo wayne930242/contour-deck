@@ -9,6 +9,8 @@ export interface Overview {
   /** `faces[b][s]` is the front sheet of a thumbnail, the rectangle the stage zooms from. */
   faces: HTMLElement[][];
   thumbs: HTMLButtonElement[][];
+  /** The small entries before the first block and after the last: to the opening and the closing, which have no tile. */
+  entries: { opening?: HTMLButtonElement; closing?: HTMLButtonElement };
   /** Moves the "you are here" ring onto a thumbnail. */
   ring(b: number, s: number, instant?: boolean): void;
   /** Records that a slide has been on the stage: the outline shows it faded. */
@@ -110,6 +112,16 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
     });
   });
 
+  // The opening and the closing are not blocks of the talk: a slim entry each, before the first tile and after the last.
+  const entry = (b: number, label: string) => {
+    const button = h("button", "ct-entry", "", { "data-ct-go": `${b},0,0`, "data-kind": blocks[b].kind, "aria-label": `${label}：${blocks[b].slides[0].title || blocks[b].title}` });
+    button.append(h("span", "ct-meta", label), h("span", "ct-et", blocks[b].slides[0].title || blocks[b].title));
+    return button;
+  };
+  const entries: Overview["entries"] = {};
+  if (first > 0) plane.insertBefore((entries.opening = entry(0, labels.opening)), tiles[first]);
+  if (last < blocks.length - 1) plane.appendChild((entries.closing = entry(blocks.length - 1, labels.closing)));
+
   const ringEl = plane.appendChild(h("div", "ct-ring", "", { "data-label": labels.here }));
   let ringAt: [number, number] = [0, 0];
 
@@ -140,6 +152,7 @@ export function buildOverview(blocks: BlockNode[], labels: Labels): Overview {
     el,
     faces,
     thumbs,
+    entries,
     get step() {
       return (stops.firstElementChild as HTMLElement).offsetHeight || 1;
     },

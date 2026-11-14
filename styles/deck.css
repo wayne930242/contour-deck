@@ -208,3 +208,8 @@
 }
 /* The opening and the closing blocks are outside the outline and the rail. */
 .ct-tile[hidden], .ct-rg[hidden] { display: none !important; }
+/* The outline's entries to the opening and the closing: a slim, quiet row before the first block and after the last; not on the depth desk. */
+.ct-app .ct-entry { grid-column: 1 / -1; display: flex; align-items: baseline; gap: .6rem; padding: .4rem .8rem; border: 1px dashed var(--ct-border); background: none; color: var(--ct-muted); font: inherit; font-size: .8rem; text-align: left; cursor: pointer; }
+.ct-entry .ct-et { color: var(--ct-fg); font-weight: 650; }
+.ct-entry:hover .ct-et { text-decoration: underline; text-underline-offset: .2em; }
+.ct-app[data-ct-3d] .ct-entry { display: none; }

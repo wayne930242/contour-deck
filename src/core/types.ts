@@ -28,6 +28,9 @@ export interface Labels {
   remote: string;
   here: string;
   appendix: string;
+  /** The outline's entries to the opening and the closing blocks. */
+  opening: string;
+  closing: string;
   rail: string;
   noNotes: string;
   slides(count: number): string;
