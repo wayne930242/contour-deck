@@ -37,7 +37,7 @@ A change to this file goes in its own commit whose message starts with `contract
         content         any HTML
         [data-ct-step]  0 or more, anywhere inside the page content
         [data-ct-notes] 0 or more, element children of the page
-        [data-ct-background] 0 or 1, an element child of the page
+        [data-ct-background] 0 or 1, the first element child of the page
 ```
 
 - Each level holds only the level below it: a deck has no element child other than blocks, a block none other than slides, a slide none other than pages.
